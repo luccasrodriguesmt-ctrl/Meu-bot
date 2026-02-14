@@ -1,11 +1,10 @@
-
 import random
 from threading import Thread
 from flask import Flask
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
 
-# --- SERVIDOR PARA O RENDER ---
+# --- SERVIDOR FANTASMA ---
 app_flask = Flask('')
 @app_flask.route('/')
 def home(): return "RPG Online!"
@@ -14,28 +13,17 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# --- CONFIGURAÇÕES DO RPG ---
+# --- CONFIGURAÇÕES ---
 TOKEN = "8506567958:AAFn-GXHiZWnXDCn2sVvnZ1aG43aputD2hw"
 players = {}
 
-# Defina aqui os links das imagens para cada classe
+# Dicionário de Classes com suas respectivas imagens e status iniciais
 CLASSES = {
-    "Guerreiro": {
-        "img": "https://i.ibb.co/S76XpY7/warrior-pixel.png", 
-        "hp": 120, "en": 20, "desc": "🛡️ Alta vida e força bruta."
-    },
-    "Bruxa": {
-        "img": "https://i.ibb.co/vYm6m8j/witch-pixel.png", 
-        "hp": 80, "en": 25, "desc": "🧙 Grande mana e feitiços poderosos."
-    },
-    "Ladino": {
-        "img": "https://i.ibb.co/pLzXN0x/rogue-pixel.png", 
-        "hp": 90, "en": 22, "desc": "🗡️ Ágil e mestre em roubos."
-    },
-    "Bêbado": {
-        "img": "https://i.ibb.co/f4n6p4V/drunk-pixel.png", 
-        "hp": 150, "en": 10, "desc": "🍺 Resistente, mas muito lento."
-    }
+    "Guerreiro": {"img": "https://rpg-static.com/img/warrior.png", "hp": 120, "en": 20},
+    "Bruxa": {"img": "https://rpg-static.com/img/witch.png", "hp": 80, "en": 25},
+    "Ladino": {"img": "https://rpg-static.com/img/rogue.png", "hp": 90, "en": 22},
+    "Monge": {"img": "https://rpg-static.com/img/monk.png", "hp": 110, "en": 18},
+    "Bêbado": {"img": "https://rpg-static.com/img/drunk.png", "hp": 150, "en": 10},
 }
 
 def gerar_menu_principal(uid):
@@ -52,28 +40,30 @@ def gerar_menu_principal(uid):
     kb = [
         [InlineKeyboardButton("⚔️ Caçar", callback_data='c'), InlineKeyboardButton("🗺️ Viajar", callback_data='n')],
         [InlineKeyboardButton("🎒 Inventário", callback_data='n'), InlineKeyboardButton("👤 Perfil", callback_data='n')],
-        [InlineKeyboardButton("🔄 Resetar Personagem", callback_data='reset')]
+        [InlineKeyboardButton("🏪 Loja", callback_data='n'), InlineKeyboardButton("🔄 Resetar", callback_data='reset')]
     ]
     return txt, InlineKeyboardMarkup(kb)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     
-    if uid in players:
+    # Se o jogador já tem classe, vai pro menu. Se não, escolhe classe.
+    if uid in players and "classe" in players[uid]:
         txt, markup = gerar_menu_principal(uid)
-        await context.bot.send_photo(chat_id=uid, photo=players[uid]['img'], caption=txt, reply_markup=markup, parse_mode='Markdown')
+        await update.message.reply_text("Bem-vindo de volta!")
     else:
-        # Tela de Seleção Inicial
-        img_selecao = "https://i.ibb.co/mS6v9zB/select-screen.png"
+        # Tela de Criação de Personagem
+        img_inicio = "https://rpg-static.com/img/select_class.png" 
         kb = [
             [InlineKeyboardButton("🛡️ Guerreiro", callback_data='sel_Guerreiro'), InlineKeyboardButton("🧙 Bruxa", callback_data='sel_Bruxa')],
-            [InlineKeyboardButton("🗡️ Ladino", callback_data='sel_Ladino'), InlineKeyboardButton("🍺 Bêbado", callback_data='sel_Bêbado')]
+            [InlineKeyboardButton("🗡️ Ladino", callback_data='sel_Ladino'), InlineKeyboardButton("🧘 Monge", callback_data='sel_Monge')],
+            [InlineKeyboardButton("🍺 Bêbado", callback_data='sel_Bêbado')]
         ]
         await context.bot.send_photo(
-            chat_id=uid, 
-            photo=img_selecao, 
-            caption="✨ **BEM-VINDO AO TELETOFUS**\n\nEscolha sua classe inicial para começar:", 
-            reply_markup=InlineKeyboardMarkup(kb), 
+            chat_id=update.effective_chat.id, 
+            photo=img_inicio,
+            caption="✨ **Bem-vindo ao Teletofus!**\n\nEscolha sua classe inicial para começar a jornada:",
+            reply_markup=InlineKeyboardMarkup(kb),
             parse_mode='Markdown'
         )
 
@@ -82,15 +72,29 @@ async def clique(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = q.from_user.id
     await q.answer()
 
+    # Seleção de Classe
     if q.data.startswith('sel_'):
-        nome_classe = q.data.split('_')[1]
-        c = CLASSES[nome_classe]
+        classe_nome = q.data.split('_')[1]
+        stats = CLASSES[classe_nome]
         players[uid] = {
-            "classe": nome_classe, "hp": c['hp'], "en": c['en'], 
-            "gold": 0, "lv": 1, "img": c['img']
+            "classe": classe_nome, "hp": stats['hp'], "en": stats['en'], 
+            "gold": 0, "lv": 1, "img": stats['img']
         }
         txt, markup = gerar_menu_principal(uid)
-        
-        # Troca a imagem da seleção pela skin da classe
-        await q.edit_message_media(media=InputMediaPhoto(c['img']))
-        await q.edit_message
+        # Muda a imagem para a imagem da classe escolhida
+        await q.edit_message_media(media=InputMediaPhoto(stats['img']))
+        await q.edit_message_caption(caption="✅ Classe escolhida!\n\n" + txt, reply_markup=markup, parse_mode='Markdown')
+
+    elif q.data == 'reset':
+        if uid in players: del players[uid]
+        await q.edit_message_caption(caption="Personagem deletado. Use /start para criar outro.")
+
+# No final do arquivo, adicione as imports necessárias que faltaram
+from telegram import InputMediaPhoto
+
+if __name__ == '__main__':
+    keep_alive()
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(clique))
+    app.run_polling()
