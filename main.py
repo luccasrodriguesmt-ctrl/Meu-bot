@@ -1,5 +1,5 @@
 """
-🎮 BOT RPG TELEGRAM - VERSÃO MELHORADA
+🎮 BOT RPG TELEGRAM - VERSÃO MELHORADA E CORRIGIDA
 Por: Seu Nome
 
 MELHORIAS IMPLEMENTADAS:
@@ -10,10 +10,12 @@ MELHORIAS IMPLEMENTADAS:
 ✅ Estatísticas de vitórias/derrotas
 ✅ Monstros que escalam com seu level
 ✅ Código organizado e comentado
+✅ CORRIGIDO: Erro de asyncio event loop
 """
 
 import random
 import sqlite3
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
 
@@ -499,7 +501,7 @@ def menu_inventario(uid):
     equip = obter_equipamentos(uid)
     
     if not inventario:
-        texto = "🎒 **INVENTÁRIO VAZIO**\n\nVocê não tem itens ainda.\nDerrot monstros para conseguir drops!"
+        texto = "🎒 **INVENTÁRIO VAZIO**\n\nVocê não tem itens ainda.\nDerrote monstros para conseguir drops!"
     else:
         texto = "🎒 **INVENTÁRIO**\n\n"
         
@@ -757,9 +759,9 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for nome, item in ITENS.items():
                     if item['tipo'] in ['arma', 'armadura']:
                         # Só dropar itens apropriados pro level
-                        if player['level'] <= 3 and 'Madeira' in nome or 'Pano' in nome:
+                        if player['level'] <= 3 and ('Madeira' in nome or 'Pano' in nome):
                             itens_drop.append(nome)
-                        elif player['level'] <= 7 and 'Ferro' in nome or 'Couro' in nome:
+                        elif player['level'] <= 7 and ('Ferro' in nome or 'Couro' in nome):
                             itens_drop.append(nome)
                         elif player['level'] > 7:
                             itens_drop.append(nome)
@@ -930,9 +932,10 @@ Equipe itens para ficar mais forte!"""
         await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
 
 # ============================================
-# INICIALIZAÇÃO
+# FUNÇÃO MAIN - CORRIGIDA
 # ============================================
-if __name__ == '__main__':
+async def main():
+    """Função principal assíncrona"""
     print("🚀 Iniciando RPG Bot...")
     
     # Criar banco de dados
@@ -945,4 +948,19 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(processar_botoes))
     
     print("✅ Bot ONLINE!")
-    app.run_polling(drop_pending_updates=True)
+    print("📱 Envie /start no Telegram para começar!")
+    print("🛑 Pressione Ctrl+C para parar o bot")
+    
+    # Executar o bot
+    await app.run_polling(drop_pending_updates=True)
+
+# ============================================
+# INICIALIZAÇÃO - CORRIGIDA
+# ============================================
+if __name__ == '__main__':
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n🛑 Bot finalizado pelo usuário!")
+    except Exception as e:
+        print(f"❌ Erro fatal: {e}")
