@@ -265,44 +265,44 @@ def simular_combate(player, monstro):
 # ============================================
 # INTERFACE - MENUS
 # ============================================
-def criar_barra(atual, maximo, char="█", tamanho=10):
-    """Cria barra de progresso visual"""
+def criar_barra(atual, maximo, tipo="hp"):
+    """Cria barra de progresso visual BONITA"""
     porcentagem = atual / maximo if maximo > 0 else 0
-    cheio = int(porcentagem * tamanho)
-    vazio = tamanho - cheio
-    return char * cheio + "░" * vazio
+    cheios = int(porcentagem * 5)  # 5 blocos
+    vazios = 5 - cheios
+    
+    if tipo == "hp":
+        return "🟥" * cheios + "⬜" * vazios
+    elif tipo == "energia":
+        return "🟩" * cheios + "⬜" * vazios
+    elif tipo == "xp":
+        return "🟨" * cheios + "⬜" * vazios
 
 def menu_principal(uid):
     """Gera menu principal do jogo"""
     p = carregar_player(uid)
     classe_info = CLASSES[p['classe']]
     
-    barra_hp = criar_barra(p['hp_atual'], p['hp_max'], "❤️")
-    barra_en = criar_barra(p['energia_atual'], p['energia_max'], "⚡")
-    barra_xp = criar_barra(p['xp'], xp_para_proximo_level(p['level']), "⭐")
+    # Barras BONITAS com emojis coloridos
+    barra_hp = criar_barra(p['hp_atual'], p['hp_max'], "hp")
+    barra_en = criar_barra(p['energia_atual'], p['energia_max'], "energia")
+    barra_xp = criar_barra(p['xp'], xp_para_proximo_level(p['level']), "xp")
     
-    texto = f"""
-🏰 **{p['classe']}** - Level {p['level']}
-
-❤️ HP: {p['hp_atual']}/{p['hp_max']}
-{barra_hp}
-
-⚡ Energia: {p['energia_atual']}/{p['energia_max']}
-{barra_en}
-
-⭐ XP: {p['xp']}/{xp_para_proximo_level(p['level'])}
-{barra_xp}
-
+    texto = f"""🏰 **Planície** (Lv {p['level']})
+👤 Classe: {p['classe']}
+❤️ HP: {p['hp_atual']}/{p['hp_max']} {barra_hp}
+⚡ Energia: {p['energia_atual']}/{p['energia_max']} {barra_en}
+✨ XP: {p['xp']}/{xp_para_proximo_level(p['level'])} {barra_xp}
 💰 Gold: {p['gold']}
 ⚔️ ATK: {p['ataque']} | 🛡️ DEF: {p['defesa']}
-🏆 Vitórias: {p['vitorias']} | ☠️ Derrotas: {p['derrotas']}
 """
     
     botoes = [
-        [InlineKeyboardButton("⚔️ Caçar Monstros (2 energia)", callback_data='cacar')],
-        [InlineKeyboardButton("😴 Descansar", callback_data='descansar')],
-        [InlineKeyboardButton("📊 Ver Estatísticas", callback_data='stats')],
-        [InlineKeyboardButton("🔄 Resetar Personagem", callback_data='reset')]
+        [InlineKeyboardButton("⚔️ Caçar", callback_data='cacar'),
+         InlineKeyboardButton("🗺️ Viajar", callback_data='viajar')],
+        [InlineKeyboardButton("🎒 Inventário", callback_data='inventario'),
+         InlineKeyboardButton("👤 Perfil", callback_data='stats')],
+        [InlineKeyboardButton("🔄 Resetar", callback_data='reset')]
     ]
     
     return texto, InlineKeyboardMarkup(botoes), classe_info['img']
@@ -329,17 +329,23 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Novo player, escolher classe
         img_inicio = "https://picsum.photos/seed/rpgstart/400/300"
         
-        botoes = []
+        # Texto de apresentação
+        texto_inicial = "✨ **BEM-VINDO AO RPG!**\n\nEscolha sua classe:\n\n"
+        
         for nome, info in CLASSES.items():
-            botoes.append([InlineKeyboardButton(
-                f"{info['desc']}", 
-                callback_data=f'criar_{nome}'
-            )])
+            texto_inicial += f"**{nome}** - {info['desc']}\n"
+        
+        botoes = [
+            [InlineKeyboardButton("🛡️ Guerreiro", callback_data='criar_Guerreiro'),
+             InlineKeyboardButton("🔮 Bruxa", callback_data='criar_Bruxa')],
+            [InlineKeyboardButton("🗡️ Ladino", callback_data='criar_Ladino'),
+             InlineKeyboardButton("🌿 Druida", callback_data='criar_Druida')]
+        ]
         
         await context.bot.send_photo(
             chat_id=uid,
             photo=img_inicio,
-            caption="✨ **BEM-VINDO AO RPG!**\n\nEscolha sua classe:",
+            caption=texto_inicial,
             reply_markup=InlineKeyboardMarkup(botoes),
             parse_mode='Markdown'
         )
@@ -449,7 +455,15 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
     
-    # ===== ESTATÍSTICAS =====
+    # ===== VIAJAR (em breve) =====
+    elif q.data == 'viajar':
+        await q.answer("🗺️ Em breve! Novas áreas virão...", show_alert=True)
+    
+    # ===== INVENTÁRIO (em breve) =====
+    elif q.data == 'inventario':
+        await q.answer("🎒 Sistema de inventário em desenvolvimento!", show_alert=True)
+    
+    # ===== PERFIL/ESTATÍSTICAS =====
     elif q.data == 'stats':
         player = carregar_player(uid)
         
@@ -458,19 +472,23 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if total > 0:
             taxa_vitoria = (player['vitorias'] / total) * 100
         
-        stats = f"""
-📊 **ESTATÍSTICAS**
+        stats = f"""👤 **PERFIL**
 
-👤 Classe: {player['classe']}
 🏆 Level: {player['level']}
-⭐ XP Total: {player['xp']}
+⭐ XP: {player['xp']}/{xp_para_proximo_level(player['level'])}
+🎭 Classe: {player['classe']}
 
-⚔️ Total de Batalhas: {total}
+⚔️ Ataque: {player['ataque']}
+🛡️ Defesa: {player['defesa']}
+❤️ HP Máximo: {player['hp_max']}
+⚡ Energia Máxima: {player['energia_max']}
+
+💰 Gold: {player['gold']}
+
+📊 **Estatísticas de Combate:**
 ✅ Vitórias: {player['vitorias']}
 ❌ Derrotas: {player['derrotas']}
 📈 Taxa de Vitória: {taxa_vitoria:.1f}%
-
-💰 Gold Acumulado: {player['gold']}
 """
         
         botoes = [[InlineKeyboardButton("◀️ Voltar", callback_data='voltar')]]
