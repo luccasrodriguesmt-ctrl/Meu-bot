@@ -35,10 +35,10 @@ def home():
     return "🎮 RPG Bot está ONLINE!"
 
 def run_flask(): 
-    app_flask.run(host='0.0.0.0', port=8080)
+    app_flask.run(host='0.0.0.0', port=8080, use_reloader=False)
 
 def keep_alive():
-    t = Thread(target=run_flask)
+    t = Thread(target=run_flask, daemon=True)
     t.start()
 
 # ============================================
@@ -956,13 +956,18 @@ if __name__ == '__main__':
     # Criar banco de dados
     criar_banco()
     
-    # Iniciar servidor Flask
+    # Iniciar servidor Flask (em thread separada)
     keep_alive()
     
-    # Iniciar bot
+    # Aguardar Flask iniciar
+    import time
+    time.sleep(2)
+    
+    # Iniciar bot Telegram
+    print("✅ Iniciando bot Telegram...")
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CallbackQueryHandler(processar_botoes))
     
     print("✅ Bot ONLINE!")
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
