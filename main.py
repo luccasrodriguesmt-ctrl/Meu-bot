@@ -42,6 +42,182 @@ def keep_alive():
     t.start()
 
 # ============================================
+# ITENS DO JOGO
+# ============================================
+ITENS = {
+    # ARMAS
+    "Espada de Madeira": {
+        "tipo": "arma",
+        "ataque": 3,
+        "preco": 20,
+        "desc": "Uma espada simples de treino"
+    },
+    "Espada de Ferro": {
+        "tipo": "arma",
+        "ataque": 8,
+        "preco": 100,
+        "desc": "Espada forjada com ferro de qualidade"
+    },
+    "Espada Flamejante": {
+        "tipo": "arma",
+        "ataque": 15,
+        "preco": 350,
+        "desc": "Lâmina envolta em chamas"
+    },
+    
+    # ARMADURAS
+    "Roupa de Pano": {
+        "tipo": "armadura",
+        "defesa": 2,
+        "preco": 15,
+        "desc": "Roupas simples"
+    },
+    "Armadura de Couro": {
+        "tipo": "armadura",
+        "defesa": 6,
+        "preco": 80,
+        "desc": "Armadura leve e resistente"
+    },
+    "Armadura de Placas": {
+        "tipo": "armadura",
+        "defesa": 12,
+        "preco": 300,
+        "desc": "Armadura pesada de metal"
+    },
+    
+    # CONSUMÍVEIS
+    "Poção de Vida": {
+        "tipo": "consumivel",
+        "hp_recupera": 50,
+        "preco": 30,
+        "desc": "Restaura 50 HP"
+    },
+    "Poção Grande": {
+        "tipo": "consumivel",
+        "hp_recupera": 100,
+        "preco": 70,
+        "desc": "Restaura 100 HP"
+    },
+}
+
+# ============================================
+# FUNÇÕES DE INVENTÁRIO
+# ============================================
+def adicionar_item(uid, item_nome, quantidade=1):
+    """Adiciona item ao inventário"""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    
+    item = ITENS.get(item_nome)
+    if not item:
+        conn.close()
+        return False
+    
+    # Verificar se já tem o item
+    c.execute('SELECT id, quantidade FROM inventario WHERE user_id = ? AND item_nome = ?', 
+              (uid, item_nome))
+    resultado = c.fetchone()
+    
+    if resultado:
+        # Já tem, aumentar quantidade
+        nova_qtd = resultado[1] + quantidade
+        c.execute('UPDATE inventario SET quantidade = ? WHERE id = ?', (nova_qtd, resultado[0]))
+    else:
+        # Não tem, adicionar novo
+        c.execute('INSERT INTO inventario (user_id, item_nome, item_tipo, quantidade) VALUES (?, ?, ?, ?)',
+                 (uid, item_nome, item['tipo'], quantidade))
+    
+    conn.commit()
+    conn.close()
+    return True
+
+def remover_item(uid, item_nome, quantidade=1):
+    """Remove item do inventário"""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    
+    c.execute('SELECT id, quantidade FROM inventario WHERE user_id = ? AND item_nome = ?',
+             (uid, item_nome))
+    resultado = c.fetchone()
+    
+    if resultado:
+        nova_qtd = resultado[1] - quantidade
+        if nova_qtd <= 0:
+            c.execute('DELETE FROM inventario WHERE id = ?', (resultado[0],))
+        else:
+            c.execute('UPDATE inventario SET quantidade = ? WHERE id = ?', (nova_qtd, resultado[0]))
+        conn.commit()
+        conn.close()
+        return True
+    
+    conn.close()
+    return False
+
+def obter_inventario(uid):
+    """Retorna inventário do player"""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    
+    c.execute('SELECT item_nome, item_tipo, quantidade FROM inventario WHERE user_id = ?', (uid,))
+    itens = c.fetchall()
+    conn.close()
+    
+    return [{"nome": i[0], "tipo": i[1], "quantidade": i[2]} for i in itens]
+
+def equipar_item(uid, item_nome):
+    """Equipa arma ou armadura"""
+    if item_nome not in ITENS:
+        return False
+    
+    item = ITENS[item_nome]
+    
+    # Verificar se tem o item no inventário
+    inventario = obter_inventario(uid)
+    if not any(i['nome'] == item_nome for i in inventario):
+        return False
+    
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    
+    if item['tipo'] == 'arma':
+        c.execute('INSERT OR REPLACE INTO equipamentos (user_id, arma) VALUES (?, ?)',
+                 (uid, item_nome))
+    elif item['tipo'] == 'armadura':
+        c.execute('INSERT OR REPLACE INTO equipamentos (user_id, armadura) VALUES (?, ?)',
+                 (uid, item_nome))
+    
+    conn.commit()
+    conn.close()
+    return True
+
+def obter_equipamentos(uid):
+    """Retorna equipamentos do player"""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    
+    c.execute('SELECT arma, armadura FROM equipamentos WHERE user_id = ?', (uid,))
+    resultado = c.fetchone()
+    conn.close()
+    
+    if resultado:
+        return {"arma": resultado[0], "armadura": resultado[1]}
+    return {"arma": None, "armadura": None}
+
+def calcular_bonus_equipamentos(uid):
+    """Calcula bônus dos equipamentos"""
+    equip = obter_equipamentos(uid)
+    bonus_atk = 0
+    bonus_def = 0
+    
+    if equip['arma'] and equip['arma'] in ITENS:
+        bonus_atk = ITENS[equip['arma']].get('ataque', 0)
+    
+    if equip['armadura'] and equip['armadura'] in ITENS:
+        bonus_def = ITENS[equip['armadura']].get('defesa', 0)
+    
+    return bonus_atk, bonus_def
+
+# ============================================
 # CLASSES DE PERSONAGEM
 # ============================================
 CLASSES = {
@@ -122,6 +298,24 @@ def criar_banco():
         gold INTEGER DEFAULT 0,
         vitorias INTEGER DEFAULT 0,
         derrotas INTEGER DEFAULT 0
+    )''')
+    
+    # Tabela de inventário
+    c.execute('''CREATE TABLE IF NOT EXISTS inventario (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        item_nome TEXT NOT NULL,
+        item_tipo TEXT NOT NULL,
+        quantidade INTEGER DEFAULT 1,
+        FOREIGN KEY (user_id) REFERENCES players (user_id)
+    )''')
+    
+    # Tabela de equipamentos
+    c.execute('''CREATE TABLE IF NOT EXISTS equipamentos (
+        user_id INTEGER PRIMARY KEY,
+        arma TEXT,
+        armadura TEXT,
+        FOREIGN KEY (user_id) REFERENCES players (user_id)
     )''')
     
     conn.commit()
@@ -283,6 +477,11 @@ def menu_principal(uid):
     p = carregar_player(uid)
     classe_info = CLASSES[p['classe']]
     
+    # Calcular bônus de equipamentos
+    bonus_atk, bonus_def = calcular_bonus_equipamentos(uid)
+    atk_total = p['ataque'] + bonus_atk
+    def_total = p['defesa'] + bonus_def
+    
     # Barras BONITAS com emojis coloridos
     barra_hp = criar_barra(p['hp_atual'], p['hp_max'], "hp")
     barra_en = criar_barra(p['energia_atual'], p['energia_max'], "energia")
@@ -294,18 +493,170 @@ def menu_principal(uid):
 ⚡ Energia: {p['energia_atual']}/{p['energia_max']} {barra_en}
 ✨ XP: {p['xp']}/{xp_para_proximo_level(p['level'])} {barra_xp}
 💰 Gold: {p['gold']}
-⚔️ ATK: {p['ataque']} | 🛡️ DEF: {p['defesa']}
 """
+    
+    # Mostrar equipamentos se tiver
+    if bonus_atk > 0 or bonus_def > 0:
+        texto += f"⚔️ ATK: {p['ataque']} (+{bonus_atk}) | 🛡️ DEF: {p['defesa']} (+{bonus_def})\n"
+    else:
+        texto += f"⚔️ ATK: {atk_total} | 🛡️ DEF: {def_total}\n"
     
     botoes = [
         [InlineKeyboardButton("⚔️ Caçar", callback_data='cacar'),
-         InlineKeyboardButton("🗺️ Viajar", callback_data='viajar')],
+         InlineKeyboardButton("😴 Descansar", callback_data='descansar')],
         [InlineKeyboardButton("🎒 Inventário", callback_data='inventario'),
-         InlineKeyboardButton("👤 Perfil", callback_data='stats')],
-        [InlineKeyboardButton("🔄 Resetar", callback_data='reset')]
+         InlineKeyboardButton("👤 Perfil", callback_data='perfil')],
+        [InlineKeyboardButton("⚙️ Menu", callback_data='menu_config')]
     ]
     
     return texto, InlineKeyboardMarkup(botoes), classe_info['img']
+
+def menu_inventario(uid):
+    """Menu do inventário"""
+    inventario = obter_inventario(uid)
+    equip = obter_equipamentos(uid)
+    
+    if not inventario:
+        texto = "🎒 **INVENTÁRIO VAZIO**\n\nVocê não tem itens ainda.\nDerrot monstros para conseguir drops!"
+    else:
+        texto = "🎒 **INVENTÁRIO**\n\n"
+        
+        # Mostrar equipados
+        if equip['arma']:
+            texto += f"⚔️ Equipado: **{equip['arma']}**\n"
+        if equip['armadura']:
+            texto += f"🛡️ Equipado: **{equip['armadura']}**\n"
+        
+        texto += "\n**Seus Itens:**\n"
+        
+        # Agrupar por tipo
+        armas = [i for i in inventario if i['tipo'] == 'arma']
+        armaduras = [i for i in inventario if i['tipo'] == 'armadura']
+        consumiveis = [i for i in inventario if i['tipo'] == 'consumivel']
+        
+        if armas:
+            texto += "\n⚔️ **Armas:**\n"
+            for item in armas:
+                info = ITENS.get(item['nome'], {})
+                texto += f"  • {item['nome']} x{item['quantidade']}"
+                if 'ataque' in info:
+                    texto += f" (ATK +{info['ataque']})"
+                texto += "\n"
+        
+        if armaduras:
+            texto += "\n🛡️ **Armaduras:**\n"
+            for item in armaduras:
+                info = ITENS.get(item['nome'], {})
+                texto += f"  • {item['nome']} x{item['quantidade']}"
+                if 'defesa' in info:
+                    texto += f" (DEF +{info['defesa']})"
+                texto += "\n"
+        
+        if consumiveis:
+            texto += "\n🧪 **Consumíveis:**\n"
+            for item in consumiveis:
+                info = ITENS.get(item['nome'], {})
+                texto += f"  • {item['nome']} x{item['quantidade']}"
+                if 'hp_recupera' in info:
+                    texto += f" (+{info['hp_recupera']} HP)"
+                texto += "\n"
+    
+    # Botões para cada item
+    botoes = []
+    for item in inventario:
+        if item['tipo'] in ['arma', 'armadura']:
+            botoes.append([InlineKeyboardButton(
+                f"⚡ Equipar {item['nome']}", 
+                callback_data=f"equipar_{item['nome']}"
+            )])
+        elif item['tipo'] == 'consumivel':
+            botoes.append([InlineKeyboardButton(
+                f"🧪 Usar {item['nome']}", 
+                callback_data=f"usar_{item['nome']}"
+            )])
+    
+    botoes.append([InlineKeyboardButton("◀️ Voltar", callback_data='voltar')])
+    
+    return texto, InlineKeyboardMarkup(botoes)
+
+def menu_perfil(uid):
+    """Menu do perfil completo"""
+    p = carregar_player(uid)
+    equip = obter_equipamentos(uid)
+    bonus_atk, bonus_def = calcular_bonus_equipamentos(uid)
+    
+    taxa_vitoria = 0
+    total = p['vitorias'] + p['derrotas']
+    if total > 0:
+        taxa_vitoria = (p['vitorias'] / total) * 100
+    
+    texto = f"""👤 **PERFIL DO PERSONAGEM**
+
+**Informações Básicas:**
+🎭 Classe: {p['classe']}
+⭐ Level: {p['level']}
+✨ XP: {p['xp']}/{xp_para_proximo_level(p['level'])}
+
+**Atributos:**
+❤️ HP: {p['hp_max']}
+⚡ Energia: {p['energia_max']}
+⚔️ Ataque: {p['ataque']} (+{bonus_atk}) = **{p['ataque'] + bonus_atk}**
+🛡️ Defesa: {p['defesa']} (+{bonus_def}) = **{p['defesa'] + bonus_def}**
+
+**Equipamentos:**
+⚔️ Arma: {equip['arma'] or 'Nenhuma'}
+🛡️ Armadura: {equip['armadura'] or 'Nenhuma'}
+
+**Estatísticas de Combate:**
+🏆 Vitórias: {p['vitorias']}
+☠️ Derrotas: {p['derrotas']}
+📊 Taxa de Vitória: {taxa_vitoria:.1f}%
+
+**Riqueza:**
+💰 Gold Total: {p['gold']}
+"""
+    
+    botoes = [[InlineKeyboardButton("◀️ Voltar", callback_data='voltar')]]
+    
+    return texto, InlineKeyboardMarkup(botoes)
+
+def menu_configuracoes(uid):
+    """Menu de configurações"""
+    texto = """⚙️ **MENU DE CONFIGURAÇÕES**
+
+Escolha uma opção:"""
+    
+    botoes = [
+        [InlineKeyboardButton("🔄 Resetar Personagem", callback_data='confirmar_reset')],
+        [InlineKeyboardButton("📊 Estatísticas", callback_data='stats')],
+        [InlineKeyboardButton("❓ Ajuda", callback_data='ajuda')],
+        [InlineKeyboardButton("◀️ Voltar", callback_data='voltar')]
+    ]
+    
+    return texto, InlineKeyboardMarkup(botoes)
+
+def menu_confirmar_reset(uid):
+    """Menu de confirmação de reset"""
+    p = carregar_player(uid)
+    
+    texto = f"""⚠️ **ATENÇÃO!**
+
+Você está prestes a deletar seu personagem:
+
+👤 **{p['classe']}** - Level {p['level']}
+💰 Gold: {p['gold']}
+🏆 Vitórias: {p['vitorias']}
+
+**TODOS os seus pertences e progresso serão PERDIDOS!**
+
+Tem certeza que deseja continuar?"""
+    
+    botoes = [
+        [InlineKeyboardButton("✅ SIM, deletar tudo", callback_data='reset_confirmado')],
+        [InlineKeyboardButton("❌ NÃO, voltar", callback_data='voltar')]
+    ]
+    
+    return texto, InlineKeyboardMarkup(botoes)
 
 # ============================================
 # HANDLERS DO BOT
@@ -417,6 +768,27 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             resultado += f"\n\n✅ **VITÓRIA!**\n💰 +{gold_ganho} gold\n⭐ +{xp_ganho} XP"
             
+            # Sistema de drops (30% de chance)
+            if random.random() < 0.3:
+                # Escolher item baseado no level
+                itens_drop = []
+                for nome, item in ITENS.items():
+                    if item['tipo'] in ['arma', 'armadura']:
+                        # Só dropar itens apropriados pro level
+                        if player['level'] <= 3 and 'Madeira' in nome or 'Pano' in nome:
+                            itens_drop.append(nome)
+                        elif player['level'] <= 7 and 'Ferro' in nome or 'Couro' in nome:
+                            itens_drop.append(nome)
+                        elif player['level'] > 7:
+                            itens_drop.append(nome)
+                    elif item['tipo'] == 'consumivel':
+                        itens_drop.append(nome)
+                
+                if itens_drop:
+                    item_dropado = random.choice(itens_drop)
+                    adicionar_item(uid, item_dropado)
+                    resultado += f"\n🎁 Item dropado: **{item_dropado}**!"
+            
             salvar_player(uid, player)
             msgs_levelup = aplicar_level_up(uid)
             
@@ -459,11 +831,96 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif q.data == 'viajar':
         await q.answer("🗺️ Em breve! Novas áreas virão...", show_alert=True)
     
-    # ===== INVENTÁRIO (em breve) =====
+    # ===== INVENTÁRIO =====
     elif q.data == 'inventario':
-        await q.answer("🎒 Sistema de inventário em desenvolvimento!", show_alert=True)
+        txt, kb = menu_inventario(uid)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
     
-    # ===== PERFIL/ESTATÍSTICAS =====
+    # ===== EQUIPAR ITEM =====
+    elif q.data.startswith('equipar_'):
+        item_nome = q.data.replace('equipar_', '')
+        if equipar_item(uid, item_nome):
+            txt, kb = menu_inventario(uid)
+            await q.answer(f"⚡ {item_nome} equipado!", show_alert=True)
+            await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+        else:
+            await q.answer("❌ Erro ao equipar item!", show_alert=True)
+    
+    # ===== USAR CONSUMÍVEL =====
+    elif q.data.startswith('usar_'):
+        item_nome = q.data.replace('usar_', '')
+        item = ITENS.get(item_nome)
+        
+        if item and item['tipo'] == 'consumivel':
+            player = carregar_player(uid)
+            
+            if 'hp_recupera' in item:
+                hp_antes = player['hp_atual']
+                player['hp_atual'] = min(player['hp_max'], player['hp_atual'] + item['hp_recupera'])
+                hp_ganho = player['hp_atual'] - hp_antes
+                msg = f"❤️ Recuperou {hp_ganho} HP!"
+            
+            remover_item(uid, item_nome)
+            salvar_player(uid, player)
+            
+            txt, kb = menu_inventario(uid)
+            await q.answer(msg, show_alert=True)
+            await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+        else:
+            await q.answer("❌ Item não encontrado!", show_alert=True)
+    
+    # ===== PERFIL =====
+    elif q.data == 'perfil':
+        txt, kb = menu_perfil(uid)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+    
+    # ===== MENU CONFIGURAÇÕES =====
+    elif q.data == 'menu_config':
+        txt, kb = menu_configuracoes(uid)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+    
+    # ===== CONFIRMAR RESET =====
+    elif q.data == 'confirmar_reset':
+        txt, kb = menu_confirmar_reset(uid)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+    
+    # ===== RESET CONFIRMADO =====
+    elif q.data == 'reset_confirmado':
+        deletar_player(uid)
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute('DELETE FROM inventario WHERE user_id = ?', (uid,))
+        c.execute('DELETE FROM equipamentos WHERE user_id = ?', (uid,))
+        conn.commit()
+        conn.close()
+        
+        await q.edit_message_caption(
+            caption="🗑️ **Personagem deletado!**\n\nTodos os seus itens e progresso foram perdidos.\n\nUse /start para criar um novo."
+        )
+    
+    # ===== AJUDA =====
+    elif q.data == 'ajuda':
+        ajuda = """❓ **GUIA DO JOGO**
+
+**⚔️ Caçar:**
+Gasta 2 energia para batalhar. Ganhe XP, gold e itens!
+
+**😴 Descansar:**
+Recupera HP e energia.
+
+**🎒 Inventário:**
+Equipe armas/armaduras, use consumíveis.
+
+**👤 Perfil:**
+Veja todas as estatísticas.
+
+**💡 Dica:**
+Equipe itens para ficar mais forte!"""
+        
+        botoes = [[InlineKeyboardButton("◀️ Voltar", callback_data='menu_config')]]
+        await q.edit_message_caption(caption=ajuda, reply_markup=InlineKeyboardMarkup(botoes), parse_mode='Markdown')
+    
+    # ===== STATS =====
     elif q.data == 'stats':
         player = carregar_player(uid)
         
@@ -472,44 +929,23 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if total > 0:
             taxa_vitoria = (player['vitorias'] / total) * 100
         
-        stats = f"""👤 **PERFIL**
+        stats = f"""📊 **ESTATÍSTICAS**
 
-🏆 Level: {player['level']}
-⭐ XP: {player['xp']}/{xp_para_proximo_level(player['level'])}
-🎭 Classe: {player['classe']}
-
-⚔️ Ataque: {player['ataque']}
-🛡️ Defesa: {player['defesa']}
-❤️ HP Máximo: {player['hp_max']}
-⚡ Energia Máxima: {player['energia_max']}
+⚔️ Batalhas: {total}
+🏆 Vitórias: {player['vitorias']}
+☠️ Derrotas: {player['derrotas']}
+📈 Taxa: {taxa_vitoria:.1f}%
 
 💰 Gold: {player['gold']}
-
-📊 **Estatísticas de Combate:**
-✅ Vitórias: {player['vitorias']}
-❌ Derrotas: {player['derrotas']}
-📈 Taxa de Vitória: {taxa_vitoria:.1f}%
-"""
+⭐ XP: {player['xp']}"""
         
-        botoes = [[InlineKeyboardButton("◀️ Voltar", callback_data='voltar')]]
-        
-        await q.edit_message_caption(
-            caption=stats,
-            reply_markup=InlineKeyboardMarkup(botoes),
-            parse_mode='Markdown'
-        )
+        botoes = [[InlineKeyboardButton("◀️ Voltar", callback_data='menu_config')]]
+        await q.edit_message_caption(caption=stats, reply_markup=InlineKeyboardMarkup(botoes), parse_mode='Markdown')
     
     # ===== VOLTAR =====
     elif q.data == 'voltar':
         txt, kb, img = menu_principal(uid)
         await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
-    
-    # ===== RESETAR =====
-    elif q.data == 'reset':
-        deletar_player(uid)
-        await q.edit_message_caption(
-            caption="🗑️ **Personagem deletado!**\n\nUse /start para criar um novo."
-        )
 
 # ============================================
 # INICIALIZAÇÃO
