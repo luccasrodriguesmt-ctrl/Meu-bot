@@ -7,8 +7,12 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Callb
 # --- SERVIDOR FANTASMA PARA O RENDER ---
 app_flask = Flask('')
 @app_flask.route('/')
-def home(): return "RPG Online!"
-def run(): app_flask.run(host='0.0.0.0', port=8080)
+def home(): 
+    return "RPG Online!"
+
+def run(): 
+    app_flask.run(host='0.0.0.0', port=8080)
+
 def keep_alive():
     t = Thread(target=run)
     t.start()
@@ -62,7 +66,7 @@ async def clique(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer()
 
     if q.data.startswith('sel_'):
-        nome_c = q.data.split('_')[1] # Aqui estava o erro!
+        nome_c = q.data.split('_')[1]
         c = CLASSES[nome_c]
         players[uid] = {"classe": nome_c, "hp": c['hp'], "en": c['en'], "gold": 0, "lv": 1, "img": c['img']}
         txt, markup = gerar_menu_principal(uid)
@@ -74,17 +78,21 @@ async def clique(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.edit_message_caption(caption=f"✅ Criado!\n\n{txt}", reply_markup=markup, parse_mode='Markdown')
 
     elif q.data == 'reset':
-        if uid in players: del players[uid]
+        if uid in players: 
+            del players[uid]
         await q.edit_message_caption(caption="🚮 Personagem deletado! Use /start para criar outro.")
 
     elif q.data == 'c':
-        if uid in players and players[uid]['en'] >= 2:
-            players[uid]['en'] -= 2
-            players[uid]['gold'] += 10
-            txt, markup = gerar_menu_principal(uid)
-            await q.edit_message_caption(caption=txt, reply_markup=markup, parse_mode='Markdown')
+        if uid in players:
+            if players[uid]['en'] >= 2:
+                players[uid]['en'] -= 2
+                players[uid]['gold'] += 10
+                txt, markup = gerar_menu_principal(uid)
+                await q.edit_message_caption(caption=txt, reply_markup=markup, parse_mode='Markdown')
+            else:
+                await q.answer("⚡ Sem energia!", show_alert=True)
         else:
-            await q.answer("⚡ Sem energia!", show_alert=True)
+            await q.answer("❌ Crie um personagem primeiro!")
 
 if __name__ == '__main__':
     keep_alive()
