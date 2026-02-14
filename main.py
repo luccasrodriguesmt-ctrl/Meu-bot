@@ -4,7 +4,7 @@ from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
 
-# --- SERVIDOR PARA O RENDER ---
+# --- SERVIDOR FANTASMA PARA O RENDER ---
 app_flask = Flask('')
 @app_flask.route('/')
 def home(): return "RPG Online!"
@@ -13,28 +13,16 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# --- CONFIGURAÇÕES DO RPG ---
+# --- CONFIGURAÇÕES DO BOT ---
 TOKEN = "8506567958:AAFn-GXHiZWnXDCn2sVvnZ1aG43aputD2hw"
 players = {}
 
-# Defina aqui os links das imagens para cada classe
+# Imagens aleatórias de RPG para teste
 CLASSES = {
-    "Guerreiro": {
-        "img": "https://i.ibb.co/S76XpY7/warrior-pixel.png", 
-        "hp": 120, "en": 20, "desc": "🛡️ Alta vida e força bruta."
-    },
-    "Bruxa": {
-        "img": "https://i.ibb.co/vYm6m8j/witch-pixel.png", 
-        "hp": 80, "en": 25, "desc": "🧙 Grande mana e feitiços poderosos."
-    },
-    "Ladino": {
-        "img": "https://i.ibb.co/pLzXN0x/rogue-pixel.png", 
-        "hp": 90, "en": 22, "desc": "🗡️ Ágil e mestre em roubos."
-    },
-    "Bêbado": {
-        "img": "https://i.ibb.co/f4n6p4V/drunk-pixel.png", 
-        "hp": 150, "en": 10, "desc": "🍺 Resistente, mas muito lento."
-    }
+    "Guerreiro": {"img": "https://picsum.photos/seed/knight/400/300", "hp": 120, "en": 20},
+    "Bruxa": {"img": "https://picsum.photos/seed/wizard/400/300", "hp": 80, "en": 25},
+    "Ladino": {"img": "https://picsum.photos/seed/thief/400/300", "hp": 90, "en": 22},
+    "Bêbado": {"img": "https://picsum.photos/seed/beer/400/300", "hp": 150, "en": 10}
 }
 
 def gerar_menu_principal(uid):
@@ -51,30 +39,22 @@ def gerar_menu_principal(uid):
     kb = [
         [InlineKeyboardButton("⚔️ Caçar", callback_data='c'), InlineKeyboardButton("🗺️ Viajar", callback_data='n')],
         [InlineKeyboardButton("🎒 Inventário", callback_data='n'), InlineKeyboardButton("👤 Perfil", callback_data='n')],
-        [InlineKeyboardButton("🔄 Resetar Personagem", callback_data='reset')]
+        [InlineKeyboardButton("🔄 Resetar", callback_data='reset')]
     ]
     return txt, InlineKeyboardMarkup(kb)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
-    
     if uid in players:
         txt, markup = gerar_menu_principal(uid)
         await context.bot.send_photo(chat_id=uid, photo=players[uid]['img'], caption=txt, reply_markup=markup, parse_mode='Markdown')
     else:
-        # Tela de Seleção Inicial
-        img_selecao = "https://i.ibb.co/mS6v9zB/select-screen.png"
+        img_inicio = "https://picsum.photos/seed/start/400/300"
         kb = [
             [InlineKeyboardButton("🛡️ Guerreiro", callback_data='sel_Guerreiro'), InlineKeyboardButton("🧙 Bruxa", callback_data='sel_Bruxa')],
             [InlineKeyboardButton("🗡️ Ladino", callback_data='sel_Ladino'), InlineKeyboardButton("🍺 Bêbado", callback_data='sel_Bêbado')]
         ]
-        await context.bot.send_photo(
-            chat_id=uid, 
-            photo=img_selecao, 
-            caption="✨ **BEM-VINDO AO TELETOFUS**\n\nEscolha sua classe inicial para começar:", 
-            reply_markup=InlineKeyboardMarkup(kb), 
-            parse_mode='Markdown'
-        )
+        await context.bot.send_photo(chat_id=uid, photo=img_inicio, caption="✨ **BEM-VINDO**\nEscolha sua classe:", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
 async def clique(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -82,28 +62,29 @@ async def clique(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer()
 
     if q.data.startswith('sel_'):
-        nome_classe = q.data.split('_')[1]
-        c = CLASSES[nome_classe]
-        players[uid] = {
-            "classe": nome_classe, "hp": c['hp'], "en": c['en'], 
-            "gold": 0, "lv": 1, "img": c['img']
-        }
+        nome_c = q.data.split('_')[1] # Aqui estava o erro!
+        c = CLASSES[nome_c]
+        players[uid] = {"classe": nome_c, "hp": c['hp'], "en": c['en'], "gold": 0, "lv": 1, "img": c['img']}
         txt, markup = gerar_menu_principal(uid)
         
-        # Troca a imagem da seleção pela skin da classe
-        await q.edit_message_media(media=InputMediaPhoto(c['img']))
-        await q.edit_message_caption(caption=f"✅ Você agora é um {nome_classe}!\n\n{txt}", reply_markup=markup, parse_mode='Markdown')
+        try:
+            await q.edit_message_media(media=InputMediaPhoto(c['img']))
+            await q.edit_message_caption(caption=f"✅ Você agora é um {nome_c}!\n\n{txt}", reply_markup=markup, parse_mode='Markdown')
+        except:
+            await q.edit_message_caption(caption=f"✅ Criado!\n\n{txt}", reply_markup=markup, parse_mode='Markdown')
 
     elif q.data == 'reset':
         if uid in players: del players[uid]
-        await q.edit_message_caption(caption="🚮 Personagem deletado! Use /start para criar um novo.")
+        await q.edit_message_caption(caption="🚮 Personagem deletado! Use /start para criar outro.")
 
     elif q.data == 'c':
-        if players[uid]['en'] >= 2:
+        if uid in players and players[uid]['en'] >= 2:
             players[uid]['en'] -= 2
-            players[uid]['gold'] += random.randint(10, 20)
+            players[uid]['gold'] += 10
             txt, markup = gerar_menu_principal(uid)
             await q.edit_message_caption(caption=txt, reply_markup=markup, parse_mode='Markdown')
+        else:
+            await q.answer("⚡ Sem energia!", show_alert=True)
 
 if __name__ == '__main__':
     keep_alive()
