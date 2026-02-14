@@ -14,8 +14,6 @@ MELHORIAS IMPLEMENTADAS:
 
 import random
 import sqlite3
-from threading import Thread
-from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
 
@@ -24,22 +22,6 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Callb
 # ============================================
 TOKEN = "8506567958:AAFn-GXHiZWnXDCn2sVvnZ1aG43aputD2hw"
 DB_FILE = "rpg_game.db"
-
-# ============================================
-# SERVIDOR FLASK (Manter bot online no Render)
-# ============================================
-app_flask = Flask('')
-
-@app_flask.route('/')
-def home(): 
-    return "🎮 RPG Bot está ONLINE!"
-
-def run_flask(): 
-    app_flask.run(host='0.0.0.0', port=8080, use_reloader=False)
-
-def keep_alive():
-    t = Thread(target=run_flask, daemon=True)
-    t.start()
 
 # ============================================
 # ITENS DO JOGO
@@ -956,15 +938,8 @@ if __name__ == '__main__':
     # Criar banco de dados
     criar_banco()
     
-    # Iniciar servidor Flask (em thread separada)
-    keep_alive()
-    
-    # Aguardar Flask iniciar
-    import time
-    time.sleep(2)
-    
     # Iniciar bot Telegram
-    print("✅ Iniciando bot Telegram...")
+    print("✅ Configurando bot...")
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CallbackQueryHandler(processar_botoes))
