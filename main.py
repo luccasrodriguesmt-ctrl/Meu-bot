@@ -21,12 +21,15 @@ def keep_alive():
 TOKEN = "8506567958:AAFn-GXHiZWnXDCn2sVvnZ1aG43aputD2hw"
 players = {}
 
-# Imagens aleatórias de RPG para teste
+# Lista expandida de classes com imagens temporárias
 CLASSES = {
     "Guerreiro": {"img": "https://picsum.photos/seed/knight/400/300", "hp": 120, "en": 20},
-    "Bruxa": {"img": "https://picsum.photos/seed/wizard/400/300", "hp": 80, "en": 25},
-    "Ladino": {"img": "https://picsum.photos/seed/thief/400/300", "hp": 90, "en": 22},
-    "Bêbado": {"img": "https://picsum.photos/seed/beer/400/300", "hp": 150, "en": 10}
+    "Bruxa": {"img": "https://picsum.photos/seed/witch/400/300", "hp": 80, "en": 25},
+    "Ladino": {"img": "https://picsum.photos/seed/rogue/400/300", "hp": 90, "en": 22},
+    "Bêbado": {"img": "https://picsum.photos/seed/beer/400/300", "hp": 150, "en": 10},
+    "Druida": {"img": "https://picsum.photos/seed/druid/400/300", "hp": 100, "en": 20},
+    "Feiticeiro": {"img": "https://picsum.photos/seed/mage/400/300", "hp": 70, "en": 30},
+    "Monge": {"img": "https://picsum.photos/seed/monk/400/300", "hp": 110, "en": 18}
 }
 
 def gerar_menu_principal(uid):
@@ -53,12 +56,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         txt, markup = gerar_menu_principal(uid)
         await context.bot.send_photo(chat_id=uid, photo=players[uid]['img'], caption=txt, reply_markup=markup, parse_mode='Markdown')
     else:
-        img_inicio = "https://picsum.photos/seed/start/400/300"
+        img_inicio = "https://picsum.photos/seed/rpgstart/400/300"
+        # Organizando os botões em pares para caberem na tela
         kb = [
             [InlineKeyboardButton("🛡️ Guerreiro", callback_data='sel_Guerreiro'), InlineKeyboardButton("🧙 Bruxa", callback_data='sel_Bruxa')],
-            [InlineKeyboardButton("🗡️ Ladino", callback_data='sel_Ladino'), InlineKeyboardButton("🍺 Bêbado", callback_data='sel_Bêbado')]
+            [InlineKeyboardButton("🗡️ Ladino", callback_data='sel_Ladino'), InlineKeyboardButton("🌿 Druida", callback_data='sel_Druida')],
+            [InlineKeyboardButton("✨ Feiticeiro", callback_data='sel_Feiticeiro'), InlineKeyboardButton("🧘 Monge", callback_data='sel_Monge')],
+            [InlineKeyboardButton("🍺 Bêbado", callback_data='sel_Bêbado')]
         ]
-        await context.bot.send_photo(chat_id=uid, photo=img_inicio, caption="✨ **BEM-VINDO**\nEscolha sua classe:", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        await context.bot.send_photo(chat_id=uid, photo=img_inicio, caption="✨ **BEM-VINDO AO RPG**\n\nEscolha sua classe inicial:", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
 async def clique(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -78,21 +84,17 @@ async def clique(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.edit_message_caption(caption=f"✅ Criado!\n\n{txt}", reply_markup=markup, parse_mode='Markdown')
 
     elif q.data == 'reset':
-        if uid in players: 
-            del players[uid]
-        await q.edit_message_caption(caption="🚮 Personagem deletado! Use /start para criar outro.")
+        if uid in players: del players[uid]
+        await q.edit_message_caption(caption="🚮 Personagem deletado! Use /start para recriar.")
 
     elif q.data == 'c':
-        if uid in players:
-            if players[uid]['en'] >= 2:
-                players[uid]['en'] -= 2
-                players[uid]['gold'] += 10
-                txt, markup = gerar_menu_principal(uid)
-                await q.edit_message_caption(caption=txt, reply_markup=markup, parse_mode='Markdown')
-            else:
-                await q.answer("⚡ Sem energia!", show_alert=True)
+        if uid in players and players[uid]['en'] >= 2:
+            players[uid]['en'] -= 2
+            players[uid]['gold'] += 10
+            txt, markup = gerar_menu_principal(uid)
+            await q.edit_message_caption(caption=txt, reply_markup=markup, parse_mode='Markdown')
         else:
-            await q.answer("❌ Crie um personagem primeiro!")
+            await q.answer("⚡ Sem energia!", show_alert=True)
 
 if __name__ == '__main__':
     keep_alive()
