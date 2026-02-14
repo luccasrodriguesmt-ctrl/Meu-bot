@@ -92,4 +92,22 @@ async def clique(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Troca a imagem da seleção pela skin da classe
         await q.edit_message_media(media=InputMediaPhoto(c['img']))
-        await q.edit_message
+        await q.edit_message_caption(caption=f"✅ Você agora é um {nome_classe}!\n\n{txt}", reply_markup=markup, parse_mode='Markdown')
+
+    elif q.data == 'reset':
+        if uid in players: del players[uid]
+        await q.edit_message_caption(caption="🚮 Personagem deletado! Use /start para criar um novo.")
+
+    elif q.data == 'c':
+        if players[uid]['en'] >= 2:
+            players[uid]['en'] -= 2
+            players[uid]['gold'] += random.randint(10, 20)
+            txt, markup = gerar_menu_principal(uid)
+            await q.edit_message_caption(caption=txt, reply_markup=markup, parse_mode='Markdown')
+
+if __name__ == '__main__':
+    keep_alive()
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(clique))
+    app.run_polling()
