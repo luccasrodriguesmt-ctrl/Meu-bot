@@ -1,3 +1,16 @@
+"""
+🎮 BOT RPG TELEGRAM - VERSÃO COMPLETA COM COMBATE EM TURNOS
+Por: Seu Nome
+
+NOVAS MELHORIAS:
+✅ Sistema de combate em TURNOS com botões
+✅ Variedade de monstros + Mini Bosses
+✅ Ação de DEFENDER (reduz dano)
+✅ Poções com BUFFS temporários
+✅ Combate estratégico e interativo
+✅ Sistema de raridade de drops
+"""
+
 import random
 import sqlite3
 import time
@@ -904,7 +917,8 @@ _{mapa_info['desc']}_
          InlineKeyboardButton("🗺️ Viajar", callback_data='menu_mapas')],
         [InlineKeyboardButton("🎒 Inventário", callback_data='inventario'),
          InlineKeyboardButton("👤 Perfil", callback_data='perfil')],
-        [InlineKeyboardButton("⚙️ Menu", callback_data='menu_config')]
+        [InlineKeyboardButton("⚙️ Menu", callback_data='menu_config'),
+         InlineKeyboardButton("🔥 MODO TESTE", callback_data='ativar_teste')]
     ]
     
     return texto, InlineKeyboardMarkup(botoes), mapa_info['img']
@@ -1347,7 +1361,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa mensagens de texto (para mudar nome e cheat code)"""
+    """Processa mensagens de texto (para mudar nome)"""
     uid = update.effective_user.id
     texto = update.message.text.strip()
     
@@ -1379,28 +1393,6 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode='Markdown'
         )
         return
-    
-    # Cheat Code secreto
-    if texto.lower() == '/maxpower':
-        player = carregar_player(uid)
-        
-        if not player:
-            await update.message.reply_text("❌ Crie um personagem primeiro!")
-            return
-        
-        botoes = [[InlineKeyboardButton("🔥 ATIVAR MODO GOD", callback_data='cheat_maxpower')]]
-        
-        await update.message.reply_text(
-            """🔓 **CHEAT CODE DETECTADO!**
-
-Isso vai deixar seu personagem no nível MÁXIMO com stats e gold infinitos.
-
-⚠️ Use apenas para TESTES!
-
-Deseja ativar?""",
-            reply_markup=InlineKeyboardMarkup(botoes),
-            parse_mode='Markdown'
-        )
 
 async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Processa cliques nos botões"""
@@ -1989,10 +1981,11 @@ Você foi derrotado!
         )
     
     # ===== CHEAT CODE =====
-    elif q.data == 'cheat_maxpower':
+    # ===== ATIVAR MODO TESTE =====
+    elif q.data == 'ativar_teste':
         player = carregar_player(uid)
         
-        # Maxar tudo
+        # Maxar tudo para testes
         player['level'] = 99
         player['xp'] = 0
         player['hp_max'] = 9999
@@ -2008,7 +2001,7 @@ Você foi derrotado!
         txt, kb, img = menu_principal(uid)
         
         await q.edit_message_caption(
-            caption=f"""🔥 **CHEAT CODE ATIVADO!**
+            caption=f"""🔥 **MODO TESTE ATIVADO!**
 
 ⭐ Level: 99
 ❤️ HP: 9999
@@ -2016,6 +2009,8 @@ Você foi derrotado!
 ⚔️ Ataque: 500
 🛡️ Defesa: 300
 💰 Gold: 999,999
+
+Personagem maximizado para testes!
 
 {txt}""",
             reply_markup=kb,
@@ -2223,7 +2218,7 @@ if __name__ == '__main__':
     print("✅ Bot ONLINE com sistema de combate em turnos!")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print("🎮 Features Completas:")
-    print("  ✓ Sistema de NOME personalizado")
+    print("  ✓ Criação de personagem AUTOMÁTICA")
     print("  ✓ Combate em turnos (Atacar/Defender/Item)")
     print("  ✓ 10+ tipos de monstros diferentes")
     print("  ✓ Mini-bosses com 10% de chance")
@@ -2232,6 +2227,6 @@ if __name__ == '__main__':
     print("  ✓ Sistema de LOJAS (Vila/Capital/Contrabandista)")
     print("  ✓ Energia REGENERA automaticamente (1/5min)")
     print("  ✓ Descanso PAGO (Acampamento/Casa/Pousada)")
-    print("  ✓ Cheat code: /maxpower (para testes)")
+    print("  ✓ Botão MODO TESTE para desenvolvimento")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     app.run_polling(drop_pending_updates=True)
