@@ -5,139 +5,179 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
-# Mude para 1.2.2 no GitHub para conferir se o Render atualizou!
-VERSAO = "1.2.2 - Correção Caça"
+# Mude para 1.2.3 no GitHub e dê "Clear Cache & Deploy" no Render
+VERSAO = "1.2.3 - TeleTofus Style"
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 DB_FILE = "rpg_game.db"
 IMG_MENU = "https://i.imgur.com/uP6M8fL.jpeg" 
 
+# Estados
 TELA_CLASSE, TELA_NOME = range(2)
 
-# --- AUXILIARES ---
-def gerar_barra(atual, maximo):
+# --- BANCO DE DADOS ---
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS players 
+                 (id INTEGER PRIMARY KEY, nome TEXT, classe TEXT, hp INTEGER, hp_max INTEGER, 
+                  lv INTEGER, exp INTEGER, gold INTEGER, energia INTEGER, energia_max INTEGER)''')
+    conn.commit()
+    conn.close()
+
+def get_player(uid):
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    p = conn.execute("SELECT * FROM players WHERE id = ?", (uid,)).fetchone()
+    conn.close()
+    return p
+
+# --- BARRAS VISUAIS ---
+def gerar_barra(atual, maximo, cor="🟦"):
     if maximo <= 0: return "⬜" * 10
     percent = max(0, min(atual / maximo, 1))
     preenchido = int(percent * 10)
-    return "🟦" * preenchido + "⬜" * (10 - preenchido)
+    return cor * preenchido + "⬜" * (10 - preenchido)
 
-def get_connection():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# --- LÓGICA DE EXIBIÇÃO ---
+# --- INTERFACE PRINCIPAL ---
 async def exibir_status(update, context, uid, texto_combate=""):
-    conn = get_connection()
-    p = conn.execute("SELECT * FROM players WHERE id = ?", (uid,)).fetchone()
-    conn.close()
+    p = get_player(uid)
+    if not p: return
 
-    if not p:
-        await update.effective_message.reply_text("❌ Erro ao carregar perfil. Use /start")
-        return
+    b_hp = gerar_barra(p['hp'], p['hp_max'], "🟥")
+    b_xp = gerar_barra(p['exp'], p['lv'] * 100, "🟦")
 
-    barra_hp = gerar_barra(p['hp'], p['hp_max'])
-    barra_exp = gerar_barra(p['exp'], p['lv'] * 100)
-
-    status_msg = (
-        f"🤖 **Versão:** `{VERSAO}`\n"
+    # Layout TeleTofus
+    caption = (
+        f"🎮 **Versão:** `{VERSAO}`\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"👤 **{p['nome']}** — *{p['classe']} Lv. {p['lv']}*\n\n"
-        f"❤️ **Vida:** {p['hp']}/{p['hp_max']}\n"
-        f"|{barra_hp}|\n\n"
+        f"❤️ **HP:** {p['hp']}/{p['hp_max']}\n"
+        f"└ {b_hp}\n\n"
         f"✨ **XP:** {p['exp']}/{p['lv']*100}\n"
-        f"|{barra_exp}|\n\n"
-        f"💰 **Gold:** {p['gold']}  |  ⚡ **Energia:** {p['energia']}/{p['energia_max']}\n"
+        f"└ {b_xp}\n\n"
+        f"💰 **Gold:** `{p['gold']}`  |  ⚡ **Energy:** `{p['energia']}/{p['energia_max']}`\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"{texto_combate}"
     )
 
+    # Botões em Grade (2 por linha)
     keyboard = [
         [InlineKeyboardButton("⚔️ Caçar", callback_data='cacar'), InlineKeyboardButton("🗺️ Viajar", callback_data='v')],
         [InlineKeyboardButton("🎒 Mochila", callback_data='i'), InlineKeyboardButton("👤 Status", callback_data='p')],
-        [InlineKeyboardButton("🏪 Mercado", callback_data='l'), InlineKeyboardButton("⚙️ Ajustes", callback_data='s')]
+        [InlineKeyboardButton("🏪 Mercado", callback_data='l'), InlineKeyboardButton("🏰 Masmorra", callback_data='m')],
+        [InlineKeyboardButton("⚙️ Ajustes", callback_data='s')]
     ]
 
     if update.callback_query:
+        # Se for um combate, o ideal é editar apenas o texto e manter a imagem
         await update.callback_query.edit_message_caption(
-            caption=status_msg, 
+            caption=caption, 
             reply_markup=InlineKeyboardMarkup(keyboard), 
             parse_mode='Markdown'
         )
     else:
         await update.message.reply_photo(
-            photo=IMG_MENU, caption=status_msg, 
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown'
+            photo=IMG_MENU, 
+            caption=caption, 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode='Markdown'
         )
 
-# --- SISTEMA DE CAÇA ---
+# --- SISTEMA DE COMBATE (CORRIGIDO) ---
 async def cacar_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     uid = update.effective_user.id
-    await query.answer()
+    p = get_player(uid)
 
-    conn = get_connection()
-    p = conn.execute("SELECT * FROM players WHERE id = ?", (uid,)).fetchone()
-
-    if p['energia'] < 2:
-        await query.message.reply_text("🪫 Você está sem energia! Espere um tempo.")
-        conn.close()
+    if not p:
+        await query.answer("Crie sua conta primeiro com /start", show_alert=True)
         return
 
-    # Lógica de Recompensa
-    dano = random.randint(4, 10)
-    ouro = random.randint(15, 30)
-    xp_ganho = 25
+    if p['energia'] < 2:
+        await query.answer("🪫 Sem energia!", show_alert=True)
+        return
+
+    # Lógica de Ganho
+    dano = random.randint(5, 15)
+    ouro = random.randint(10, 25)
+    xp_ganho = 20
     
-    # Update no banco
-    conn.execute("""UPDATE players SET 
-                    hp = MAX(0, hp - ?), 
-                    gold = gold + ?, 
-                    exp = exp + ?, 
-                    energia = energia - 2 
-                    WHERE id = ?""", (dano, ouro, xp_ganho, uid))
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("""UPDATE players SET 
+                 hp = MAX(0, hp - ?), 
+                 gold = gold + ?, 
+                 exp = exp + ?, 
+                 energia = energia - 2 
+                 WHERE id = ?""", (dano, ouro, xp_ganho, uid))
     conn.commit()
     conn.close()
 
-    resultado = f"⚔️ **Você encontrou um monstro!**\n💥 Perdeu {dano} HP\n💰 Ganhou {ouro} Gold e {xp_ganho} XP!"
-    await exibir_status(update, context, uid, texto_combate=resultado)
+    res = f"⚔️ **Resultado da Caça:**\n💥 Dano: -{dano} | 💰 Ouro: +{ouro} | ✨ XP: +{xp_ganho}"
+    await query.answer(f"Sucesso! +{ouro} Gold")
+    await exibir_status(update, context, uid, texto_combate=res)
 
-# --- INICIALIZAÇÃO E COMANDOS ---
+# --- FLUXO DE CRIAÇÃO ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Botão para iniciar o ConversationHandler
-    keyboard = [[InlineKeyboardButton("🎮 Começar Jogo", callback_data='ir_para_classes')]]
-    await update.message.reply_text(f"✨ RPG Versão `{VERSAO}`", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    context.user_data.clear()
+    kb = [[InlineKeyboardButton("🎮 Começar Aventura", callback_data='ir_para_classes')]]
+    await update.message.reply_text(f"✨ **Aventura Rabiscada**\nVersão `{VERSAO}`", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     return TELA_CLASSE
 
-# [As funções menu_classes, pedir_nome e salvar_final continuam aqui...]
-# (Mantendo o padrão do código anterior para salvar no SQLite)
+async def menu_classes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    kb = [
+        [InlineKeyboardButton("🛡️ Guerreiro", callback_data='Guerreiro'), InlineKeyboardButton("🏹 Arqueiro", callback_data='Arqueiro')],
+        [InlineKeyboardButton("🔮 Bruxa", callback_data='Bruxa'), InlineKeyboardButton("🔥 Mago", callback_data='Mago')]
+    ]
+    await query.edit_message_text("🎭 **Escolha sua classe:**", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    return TELA_NOME
 
-def main():
-    # Certifique-se de que o Banco existe
+async def salvar_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    context.user_data['classe'] = query.data
+    await query.answer()
+    await query.edit_message_text(f"✅ Classe **{query.data}** selecionada!\n\nAgora, digite o **nome** do seu herói:")
+    return TELA_NOME # Agora espera o texto
+
+async def finalizar_e_ir_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    nome = update.message.text
+    classe = context.user_data.get('classe', 'Guerreiro')
+
     conn = sqlite3.connect(DB_FILE)
-    conn.execute('''CREATE TABLE IF NOT EXISTS players 
-                 (id INTEGER PRIMARY KEY, nome TEXT, classe TEXT, hp INTEGER, hp_max INTEGER, 
-                  lv INTEGER, exp INTEGER, gold INTEGER, energia INTEGER, energia_max INTEGER)''')
+    conn.execute("INSERT OR REPLACE INTO players VALUES (?, ?, ?, 100, 100, 1, 0, 100, 20, 20)", (uid, nome, classe))
+    conn.commit()
     conn.close()
 
+    await update.message.reply_text("✨ Personagem criado!")
+    await exibir_status(update, context, uid)
+    return ConversationHandler.END
+
+# --- INICIALIZAÇÃO ---
+def main():
+    init_db()
     token = os.getenv("TELEGRAM_TOKEN")
     app = ApplicationBuilder().token(token).build()
 
-    # Conversation para criação
     conv = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
             TELA_CLASSE: [CallbackQueryHandler(menu_classes, pattern='^ir_para_classes$')],
-            # ... outros estados ...
+            TELA_NOME: [
+                CallbackQueryHandler(salvar_nome), 
+                MessageHandler(filters.TEXT & ~filters.COMMAND, finalizar_e_ir_menu)
+            ],
         },
         fallbacks=[CommandHandler('start', start)],
     )
 
     app.add_handler(conv)
-    app.add_handler(CallbackQueryHandler(cacar_handler, pattern='^cacar$')) # BOTÃO CAÇAR
+    app.add_handler(CallbackQueryHandler(cacar_handler, pattern='^cacar$'))
     
-    print(f"Bot rodando Versão {VERSAO}")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
