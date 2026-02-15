@@ -1474,21 +1474,7 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer()
     
     # ===== CRIAR PERSONAGEM =====
-    if q.data.startswith('criar_'):
-        classe_nome = q.data.replace('criar_', '')
-        # Salvar classe temporariamente e pedir nome
-        context.user_data['classe_escolhida'] = classe_nome
-        
-        await q.edit_message_caption(
-            caption=f"""✨ **Você escolheu: {classe_nome}!**
-
-Agora, me diga:
-**Qual será o nome do seu personagem?**
-
-Digite o nome e envie como mensagem.""",
-            parse_mode='Markdown'
-        )
-        return
+   if q.data.startswith('criar_'):
     
     # ===== CAÇAR - INICIAR COMBATE =====
     elif q.data == 'cacar':
