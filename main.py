@@ -13,8 +13,9 @@ NOVAS MELHORIAS:
 
 import random
 import sqlite3
+import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
 
 # ============================================
 # CONFIGURAÇÕES
@@ -677,7 +678,6 @@ def salvar_player(uid, dados):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     
-    import time
     ultima_update = dados.get('ultima_energia_update', int(time.time()))
     
     c.execute('''INSERT OR REPLACE INTO players 
@@ -703,7 +703,6 @@ def carregar_player(uid):
     conn.close()
     
     if row:
-        import time
         tempo_atual = int(time.time())
         ultima_update = row[14] if len(row) > 14 else tempo_atual
         
@@ -1378,7 +1377,6 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
         
         # Criar personagem
-        import time
         novo_player = {
             'nome': texto,
             'classe': classe_nome,
@@ -2245,7 +2243,6 @@ if __name__ == '__main__':
     criar_banco()
     
     print("✅ Configurando bot...")
-    from telegram.ext import MessageHandler, filters
     
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
