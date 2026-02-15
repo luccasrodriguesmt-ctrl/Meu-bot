@@ -2261,6 +2261,6 @@ if __name__ == '__main__':
     print("  ✓ Botão MODO TESTE para desenvolvimento")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     
-    # Usar stop_signals=None para evitar conflitos no Render
+    # Usar allowed_updates para otimizar
     print("🔄 Iniciando polling...")
-    app.run_polling(drop_pending_updates=True, stop_signals=None)
+    app.run_polling(drop_pending_updates=True)
