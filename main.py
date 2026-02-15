@@ -11,15 +11,32 @@ NOVAS MELHORIAS:
 ✅ Sistema de raridade de drops
 """
 
+import os
 import random
 import sqlite3
+import time
+import asyncio
+from threading import Thread
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
+
+# SISTEMA PARA O RENDER NÃO DESLIGAR O BOT
+app_flask = Flask('')
+@app_flask.route('/')
+def home(): return "Bot RPG Online!"
+def run_flask():
+    port = int(os.environ.get("PORT", 8080))
+    app_flask.run(host='0.0.0.0', port=port)
+
+# MEMÓRIA PARA O NOME NÃO TRAVAR
+ESTADOS_USUARIOS = {}
+
 
 # ============================================
 # CONFIGURAÇÕES
 # ============================================
-TOKEN = "8506567958:AAFn-GXHiZWnXDCn2sVvnZ1aG43aputD2hw"
+TOKEN = "8506567958:AAEcFC9dkj8iwZSm_RMOJ-hfRDXlLvH2kZM"
 DB_FILE = "rpg_game.db"
 
 # ============================================
@@ -531,6 +548,33 @@ MAPAS = {
 }
 
 # ============================================
+# TIPOS DE DESCANSO
+# ============================================
+TIPOS_DESCANSO = {
+    "Acampamento": {
+        "hp_recupera": 30,
+        "energia_recupera": 10,
+        "custo": 20,
+        "emoji": "⛺",
+        "desc": "Descanse em uma tenda simples"
+    },
+    "Casa": {
+        "hp_recupera": 50,
+        "energia_recupera": 20,
+        "custo": 50,
+        "emoji": "🏠",
+        "desc": "Descanse confortavelmente em uma casa"
+    },
+    "Pousada": {
+        "hp_recupera": 100,
+        "energia_recupera": 30,
+        "custo": 100,
+        "emoji": "🏨",
+        "desc": "Luxo e descanso completo"
+    }
+}
+
+# ============================================
 # LOJAS - Cada localização tem itens diferentes
 # ============================================
 LOJA_ITENS = {
@@ -583,6 +627,7 @@ def criar_banco():
     
     c.execute('''CREATE TABLE IF NOT EXISTS players (
         user_id INTEGER PRIMARY KEY,
+        nome TEXT NOT NULL,
         classe TEXT NOT NULL,
         level INTEGER DEFAULT 1,
         xp INTEGER DEFAULT 0,
@@ -595,7 +640,8 @@ def criar_banco():
         gold INTEGER DEFAULT 0,
         vitorias INTEGER DEFAULT 0,
         derrotas INTEGER DEFAULT 0,
-        mapa_atual TEXT DEFAULT 'Planície de Aether'
+        mapa_atual TEXT DEFAULT 'Planície de Aether',
+        ultima_energia_update INTEGER DEFAULT 0
     )''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS inventario (
@@ -648,21 +694,23 @@ def salvar_player(uid, dados):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     
+    ultima_update = dados.get('ultima_energia_update', int(time.time()))
+    
     c.execute('''INSERT OR REPLACE INTO players 
-                 (user_id, classe, level, xp, hp_atual, hp_max, energia_atual, 
-                  energia_max, ataque, defesa, gold, vitorias, derrotas, mapa_atual)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-              (uid, dados['classe'], dados['level'], dados['xp'], 
+                 (user_id, nome, classe, level, xp, hp_atual, hp_max, energia_atual, 
+                  energia_max, ataque, defesa, gold, vitorias, derrotas, mapa_atual, ultima_energia_update)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+              (uid, dados.get('nome', 'Aventureiro'), dados['classe'], dados['level'], dados['xp'], 
                dados['hp_atual'], dados['hp_max'], dados['energia_atual'],
                dados['energia_max'], dados['ataque'], dados['defesa'],
                dados['gold'], dados['vitorias'], dados['derrotas'],
-               dados.get('mapa_atual', 'Planície de Aether')))
+               dados.get('mapa_atual', 'Planície de Aether'), ultima_update))
     
     conn.commit()
     conn.close()
 
 def carregar_player(uid):
-    """Carrega dados do player do banco"""
+    """Carrega dados do player do banco e atualiza energia automática"""
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     
@@ -671,21 +719,38 @@ def carregar_player(uid):
     conn.close()
     
     if row:
-        return {
-            'classe': row[1],
-            'level': row[2],
-            'xp': row[3],
-            'hp_atual': row[4],
-            'hp_max': row[5],
-            'energia_atual': row[6],
-            'energia_max': row[7],
-            'ataque': row[8],
-            'defesa': row[9],
-            'gold': row[10],
-            'vitorias': row[11],
-            'derrotas': row[12],
-            'mapa_atual': row[13] if len(row) > 13 else 'Planície de Aether'
+        tempo_atual = int(time.time())
+        ultima_update = row[14] if len(row) > 14 else tempo_atual
+        
+        # Calcular energia regenerada (1 energia a cada 5 minutos = 300 segundos)
+        tempo_passado = tempo_atual - ultima_update
+        energia_regenerada = tempo_passado // 300  # 5 minutos por energia
+        
+        energia_atual = min(row[7] + energia_regenerada, row[8])  # Não ultrapassar máximo
+        
+        player = {
+            'nome': row[1] if len(row) > 1 else 'Aventureiro',
+            'classe': row[2],
+            'level': row[3],
+            'xp': row[4],
+            'hp_atual': row[5],
+            'hp_max': row[6],
+            'energia_atual': energia_atual,
+            'energia_max': row[8],
+            'ataque': row[9],
+            'defesa': row[10],
+            'gold': row[11],
+            'vitorias': row[12],
+            'derrotas': row[13],
+            'mapa_atual': row[14] if len(row) > 14 else 'Planície de Aether',
+            'ultima_energia_update': tempo_atual
         }
+        
+        # Se regenerou energia, salvar nova timestamp
+        if energia_regenerada > 0:
+            salvar_player(uid, player)
+        
+        return player
     return None
 
 def deletar_player(uid):
@@ -1031,6 +1096,8 @@ def menu_perfil(uid):
     
     texto = f"""👤 **PERFIL DO PERSONAGEM**
 
+**Nome:** {p['nome']}
+
 **Informações Básicas:**
 🎭 Classe: {p['classe']}
 ⭐ Level: {p['level']}
@@ -1055,7 +1122,45 @@ def menu_perfil(uid):
 💰 Gold Total: {p['gold']}
 """
     
-    botoes = [[InlineKeyboardButton("◀️ Voltar", callback_data='voltar')]]
+    botoes = [
+        [InlineKeyboardButton("✏️ Mudar Nome", callback_data='mudar_nome')],
+        [InlineKeyboardButton("◀️ Voltar", callback_data='voltar')]
+    ]
+    
+    return texto, InlineKeyboardMarkup(botoes)
+
+def menu_descansar(uid):
+    """Menu de opções de descanso"""
+    p = carregar_player(uid)
+    
+    texto = f"""😴 **OPÇÕES DE DESCANSO**
+
+💰 Seu Gold: {p['gold']}
+❤️ HP Atual: {p['hp_atual']}/{p['hp_max']}
+⚡ Energia: {p['energia_atual']}/{p['energia_max']}
+
+**Escolha onde descansar:**
+"""
+    
+    botoes = []
+    
+    for nome, info in TIPOS_DESCANSO.items():
+        pode_pagar = "✅" if p['gold'] >= info['custo'] else "❌"
+        botoes.append([InlineKeyboardButton(
+            f"{info['emoji']} {nome} - {info['custo']} gold {pode_pagar}",
+            callback_data=f"descansar_{nome}"
+        )])
+        
+        texto += f"\n{info['emoji']} **{nome}** ({info['custo']} gold)"
+        texto += f"\n  {info['desc']}"
+        texto += f"\n  ❤️ +{info['hp_recupera']} HP | ⚡ +{info['energia_recupera']} Energia\n"
+    
+    # Opção grátis (regeneração natural)
+    texto += f"\n💤 **Aguardar Regeneração Natural**"
+    texto += f"\n  Sua energia regenera 1 ponto a cada 5 minutos"
+    botoes.append([InlineKeyboardButton("💤 Esperar Regeneração (Grátis)", callback_data='descansar_gratis')])
+    
+    botoes.append([InlineKeyboardButton("◀️ Voltar", callback_data='voltar')])
     
     return texto, InlineKeyboardMarkup(botoes)
 
@@ -1270,18 +1375,26 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
 
-async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa cliques nos botões"""
-    q = update.callback_query
-    uid = q.from_user.id
-    await q.answer()
+async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa mensagens de texto (para nome do personagem)"""
+    uid = update.effective_user.id
+    texto = update.message.text.strip()
     
-    # ===== CRIAR PERSONAGEM =====
-    if q.data.startswith('criar_'):
-        classe_nome = q.data.replace('criar_', '')
+    # Verificar se está criando personagem
+    if 'classe_escolhida' in context.user_data:
+        classe_nome = context.user_data['classe_escolhida']
         classe = CLASSES[classe_nome]
         
+        # Validar nome
+        if len(texto) < 3 or len(texto) > 20:
+            await update.message.reply_text(
+                "❌ Nome inválido! Use entre 3 e 20 caracteres.\n\nTente novamente:"
+            )
+            return
+        
+        # Criar personagem
         novo_player = {
+            'nome': texto,
             'classe': classe_nome,
             'level': 1,
             'xp': 0,
@@ -1291,10 +1404,11 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'energia_max': classe['energia_base'],
             'ataque': classe['ataque_base'],
             'defesa': classe['defesa_base'],
-            'gold': 50,  # Gold inicial
+            'gold': 50,
             'vitorias': 0,
             'derrotas': 0,
-            'mapa_atual': 'Planície de Aether'  # Mapa inicial
+            'mapa_atual': 'Planície de Aether',
+            'ultima_energia_update': int(time.time())
         }
         
         salvar_player(uid, novo_player)
@@ -1304,14 +1418,93 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         adicionar_item(uid, "Roupa de Pano", 1)
         adicionar_item(uid, "Poção de Vida", 3)
         
+        del context.user_data['classe_escolhida']
+        
         txt, kb, img = menu_principal(uid)
         
-        await q.edit_message_media(media=InputMediaPhoto(img))
-        await q.edit_message_caption(
-            caption=f"✅ Você é agora um **{classe_nome}**!\n\n🎁 Itens iniciais recebidos!\n💰 Você começa com 50 gold!\n\n{txt}",
+        await update.message.reply_photo(
+            photo=img,
+            caption=f"""✅ **Bem-vindo, {texto}!**
+
+Você é agora um **{classe_nome}**!
+
+🎁 Itens iniciais recebidos!
+💰 Você começa com 50 gold!
+
+{txt}""",
             reply_markup=kb,
             parse_mode='Markdown'
         )
+        return
+    
+    # Verificar se está mudando nome
+    if context.user_data.get('mudando_nome'):
+        player = carregar_player(uid)
+        
+        if len(texto) < 3 or len(texto) > 20:
+            await update.message.reply_text(
+                "❌ Nome inválido! Use entre 3 e 20 caracteres.\n\nTente novamente:"
+            )
+            return
+        
+        player['nome'] = texto
+        salvar_player(uid, player)
+        
+        context.user_data['mudando_nome'] = False
+        
+        txt, kb = menu_perfil(uid)
+        
+        await update.message.reply_text(
+            f"✅ Nome alterado para **{texto}**!\n\n{txt}",
+            reply_markup=kb,
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Cheat Code secreto
+    if texto.lower() == '/maxpower':
+        player = carregar_player(uid)
+        
+        if not player:
+            await update.message.reply_text("❌ Crie um personagem primeiro!")
+            return
+        
+        botoes = [[InlineKeyboardButton("🔥 ATIVAR MODO GOD", callback_data='cheat_maxpower')]]
+        
+        await update.message.reply_text(
+            """🔓 **CHEAT CODE DETECTADO!**
+
+Isso vai deixar seu personagem no nível MÁXIMO com stats e gold infinitos.
+
+⚠️ Use apenas para TESTES!
+
+Deseja ativar?""",
+            reply_markup=InlineKeyboardMarkup(botoes),
+            parse_mode='Markdown'
+        )
+
+async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa cliques nos botões"""
+    q = update.callback_query
+    uid = q.from_user.id
+    await q.answer()
+    
+    # ===== CRIAR PERSONAGEM =====
+    if q.data.startswith('criar_'):
+        classe_nome = q.data.replace('criar_', '')
+        # Salvar classe temporariamente e pedir nome
+        context.user_data['classe_escolhida'] = classe_nome
+        
+        await q.edit_message_caption(
+            caption=f"""✨ **Você escolheu: {classe_nome}!**
+
+Agora, me diga:
+**Qual será o nome do seu personagem?**
+
+Digite o nome e envie como mensagem.""",
+            parse_mode='Markdown'
+        )
+        return
     
     # ===== CAÇAR - INICIAR COMBATE =====
     elif q.data == 'cacar':
@@ -1732,10 +1925,41 @@ Você foi derrotado!
     
     # ===== DESCANSAR =====
     elif q.data == 'descansar':
-        player = carregar_player(uid)
+        txt, kb = menu_descansar(uid)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+    
+    # ===== DESCANSAR PAGO =====
+    elif q.data.startswith('descansar_'):
+        tipo = q.data.replace('descansar_', '')
         
-        hp_rec = min(30, player['hp_max'] - player['hp_atual'])
-        en_rec = min(10, player['energia_max'] - player['energia_atual'])
+        if tipo == 'gratis':
+            await q.answer(
+                "⏰ Sua energia regenera naturalmente!\n1 energia a cada 5 minutos.",
+                show_alert=True
+            )
+            txt, kb, img = menu_principal(uid)
+            await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+            return
+        
+        player = carregar_player(uid)
+        info = TIPOS_DESCANSO.get(tipo)
+        
+        if not info:
+            await q.answer("❌ Tipo de descanso inválido!", show_alert=True)
+            return
+        
+        # Verificar gold
+        if player['gold'] < info['custo']:
+            await q.answer(
+                f"❌ Gold insuficiente! Você precisa de {info['custo']} gold.",
+                show_alert=True
+            )
+            return
+        
+        # Descansar
+        player['gold'] -= info['custo']
+        hp_rec = min(info['hp_recupera'], player['hp_max'] - player['hp_atual'])
+        en_rec = min(info['energia_recupera'], player['energia_max'] - player['energia_atual'])
         
         player['hp_atual'] += hp_rec
         player['energia_atual'] += en_rec
@@ -1744,7 +1968,12 @@ Você foi derrotado!
         txt, kb, img = menu_principal(uid)
         
         await q.edit_message_caption(
-            caption=f"😴 **Você descansou!**\n❤️ +{hp_rec} HP\n⚡ +{en_rec} Energia\n\n{txt}",
+            caption=f"""{info['emoji']} **Você descansou em {tipo}!**
+💰 -{info['custo']} gold
+❤️ +{hp_rec} HP
+⚡ +{en_rec} Energia
+
+{txt}""",
             reply_markup=kb,
             parse_mode='Markdown'
         )
@@ -1796,6 +2025,47 @@ Você foi derrotado!
     elif q.data == 'perfil':
         txt, kb = menu_perfil(uid)
         await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+    
+    # ===== MUDAR NOME =====
+    elif q.data == 'mudar_nome':
+        context.user_data['mudando_nome'] = True
+        await q.edit_message_caption(
+            caption="✏️ **Digite o novo nome do seu personagem:**\n\nEnvie o nome como mensagem."
+        )
+    
+    # ===== CHEAT CODE =====
+    elif q.data == 'cheat_maxpower':
+        player = carregar_player(uid)
+        
+        # Maxar tudo
+        player['level'] = 99
+        player['xp'] = 0
+        player['hp_max'] = 9999
+        player['hp_atual'] = 9999
+        player['energia_max'] = 999
+        player['energia_atual'] = 999
+        player['ataque'] = 500
+        player['defesa'] = 300
+        player['gold'] = 999999
+        
+        salvar_player(uid, player)
+        
+        txt, kb, img = menu_principal(uid)
+        
+        await q.edit_message_caption(
+            caption=f"""🔥 **CHEAT CODE ATIVADO!**
+
+⭐ Level: 99
+❤️ HP: 9999
+⚡ Energia: 999
+⚔️ Ataque: 500
+🛡️ Defesa: 300
+💰 Gold: 999,999
+
+{txt}""",
+            reply_markup=kb,
+            parse_mode='Markdown'
+        )
     
     # ===== MENU CONFIGURAÇÕES =====
     elif q.data == 'menu_config':
@@ -1984,23 +2254,20 @@ Gasta 2 energia. Enfrente monstros em combate por turnos!
 # INICIALIZAÇÃO
 # ============================================
 if __name__ == '__main__':
-    print("🚀 Iniciando RPG Bot Melhorado...")
+    print("🚀 Iniciando RPG Bot...")
     
     criar_banco()
     
-    print("✅ Configurando bot...")
+    # Inicia o servidor para o Render (Importante!)
+    Thread(target=run_flask, daemon=True).start()
+    
     app = ApplicationBuilder().token(TOKEN).build()
+    
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CallbackQueryHandler(processar_botoes))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_mensagem))
     
-    print("✅ Bot ONLINE com sistema de combate em turnos!")
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print("🎮 Novas Features:")
-    print("  ✓ Combate em turnos (Atacar/Defender/Item)")
-    print("  ✓ 10+ tipos de monstros diferentes")
-    print("  ✓ Mini-bosses com 10% de chance")
-    print("  ✓ Poções com buffs temporários")
-    print("  ✓ Sistema de defesa estratégico")
-    print("  ✓ Drops com raridade")
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    app.run_polling(drop_pending_updates=True)
+    print("✅ Bot ONLINE e pronto para criar personagens!")
+    
+    # O segredo para não dar erro no Render: stop_signals=None
+    app.run_polling(stop_signals=None, drop_pending_updates=True)
