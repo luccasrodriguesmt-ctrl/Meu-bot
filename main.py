@@ -20,7 +20,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Callb
 # ============================================
 # CONFIGURAÇÕES
 # ============================================
-TOKEN = "8506567958:AAFn-GXHiZWnXDCn2sVvnZ1aG43aputD2hw"
+TOKEN = "8506567958:AAEcFC9dkj8iwZSm_RMOJ-hfRDXlLvH2kZM"
 DB_FILE = "rpg_game.db"
 
 # ============================================
