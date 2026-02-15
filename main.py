@@ -14,7 +14,7 @@ def run_flask():
     app_flask.run(host='0.0.0.0', port=port)
 
 # --- CONFIGURAÇÕES ---
-TOKEN = "8506567958:AAEcFC9dkj8iwZSm_RMOJ-hfRDXlLvH2kZM"
+TOKEN = "8506567958:AAEKQHo-TsjW55WeKGwiqVvLYglEWQusxdg"
 DB_FILE = "rpg_game.db"
 
 CLASSES = {
