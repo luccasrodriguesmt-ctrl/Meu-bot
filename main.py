@@ -9,13 +9,27 @@ NOVAS MELHORIAS:
 ✅ Poções com BUFFS temporários
 ✅ Combate estratégico e interativo
 ✅ Sistema de raridade de drops
+✅ Criação automática de personagem (sem bugs)
+✅ Botão MODO TESTE para desenvolvimento
 """
 
+import os
 import random
 import sqlite3
 import time
+import requests
+from threading import Thread
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
+
+# SISTEMA PARA O RENDER NÃO DESLIGAR O BOT
+app_flask = Flask('')
+@app_flask.route('/')
+def home(): return "Bot RPG Online!"
+def run_flask():
+    port = int(os.environ.get("PORT", 8080))
+    app_flask.run(host='0.0.0.0', port=port)
 
 # ============================================
 # CONFIGURAÇÕES
@@ -2208,9 +2222,26 @@ if __name__ == '__main__':
     
     criar_banco()
     
+    # Inicia o servidor Flask para o Render
+    Thread(target=run_flask, daemon=True).start()
+    
     print("✅ Configurando bot...")
     
     app = ApplicationBuilder().token(TOKEN).build()
+    
+    # 🔥 LIMPAR WEBHOOK ANTES DE INICIAR (evita erro de conflito)
+    print("🧹 Limpando sessões antigas...")
+    import requests
+    try:
+        url = f"https://api.telegram.org/bot{TOKEN}/deleteWebhook?drop_pending_updates=true"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            print("✅ Webhook limpo com sucesso!")
+        else:
+            print("⚠️ Webhook não encontrado (normal se primeira vez)")
+    except Exception as e:
+        print(f"⚠️ Erro ao limpar webhook: {e}")
+    
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CallbackQueryHandler(processar_botoes))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_mensagem))
@@ -2229,4 +2260,7 @@ if __name__ == '__main__':
     print("  ✓ Descanso PAGO (Acampamento/Casa/Pousada)")
     print("  ✓ Botão MODO TESTE para desenvolvimento")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    app.run_polling(drop_pending_updates=True)
+    
+    # Usar stop_signals=None para evitar conflitos no Render
+    print("🔄 Iniciando polling...")
+    app.run_polling(drop_pending_updates=True, stop_signals=None)
