@@ -1,15 +1,14 @@
 """
-🎮 BOT RPG TELEGRAM - VERSÃO MELHORADA
+🎮 BOT RPG TELEGRAM - VERSÃO COMPLETA COM COMBATE EM TURNOS
 Por: Seu Nome
 
-MELHORIAS IMPLEMENTADAS:
-✅ Banco de dados SQLite (dados NÃO se perdem!)
-✅ Sistema de XP e Level Up
-✅ Combate completo com turnos
-✅ Sistema de energia e descanso
-✅ Estatísticas de vitórias/derrotas
-✅ Monstros que escalam com seu level
-✅ Código organizado e comentado
+NOVAS MELHORIAS:
+✅ Sistema de combate em TURNOS com botões
+✅ Variedade de monstros + Mini Bosses
+✅ Ação de DEFENDER (reduz dano)
+✅ Poções com BUFFS temporários
+✅ Combate estratégico e interativo
+✅ Sistema de raridade de drops
 """
 
 import random
@@ -24,7 +23,7 @@ TOKEN = "8506567958:AAFn-GXHiZWnXDCn2sVvnZ1aG43aputD2hw"
 DB_FILE = "rpg_game.db"
 
 # ============================================
-# ITENS DO JOGO
+# ITENS DO JOGO (EXPANDIDO)
 # ============================================
 ITENS = {
     # ARMAS
@@ -32,19 +31,29 @@ ITENS = {
         "tipo": "arma",
         "ataque": 3,
         "preco": 20,
+        "raridade": "comum",
         "desc": "Uma espada simples de treino"
     },
     "Espada de Ferro": {
         "tipo": "arma",
         "ataque": 8,
         "preco": 100,
+        "raridade": "comum",
         "desc": "Espada forjada com ferro de qualidade"
     },
     "Espada Flamejante": {
         "tipo": "arma",
         "ataque": 15,
         "preco": 350,
+        "raridade": "rara",
         "desc": "Lâmina envolta em chamas"
+    },
+    "Lâmina Sombria": {
+        "tipo": "arma",
+        "ataque": 20,
+        "preco": 600,
+        "raridade": "épica",
+        "desc": "Espada forjada nas trevas"
     },
     
     # ARMADURAS
@@ -52,34 +61,262 @@ ITENS = {
         "tipo": "armadura",
         "defesa": 2,
         "preco": 15,
+        "raridade": "comum",
         "desc": "Roupas simples"
     },
     "Armadura de Couro": {
         "tipo": "armadura",
         "defesa": 6,
         "preco": 80,
+        "raridade": "comum",
         "desc": "Armadura leve e resistente"
     },
     "Armadura de Placas": {
         "tipo": "armadura",
         "defesa": 12,
         "preco": 300,
+        "raridade": "rara",
         "desc": "Armadura pesada de metal"
     },
+    "Armadura Dracônica": {
+        "tipo": "armadura",
+        "defesa": 18,
+        "preco": 700,
+        "raridade": "épica",
+        "desc": "Feita de escamas de dragão"
+    },
     
-    # CONSUMÍVEIS
+    # CONSUMÍVEIS - CURA
     "Poção de Vida": {
         "tipo": "consumivel",
+        "efeito": "cura",
         "hp_recupera": 50,
         "preco": 30,
+        "raridade": "comum",
         "desc": "Restaura 50 HP"
     },
     "Poção Grande": {
         "tipo": "consumivel",
+        "efeito": "cura",
         "hp_recupera": 100,
         "preco": 70,
+        "raridade": "comum",
         "desc": "Restaura 100 HP"
     },
+    "Elixir Supremo": {
+        "tipo": "consumivel",
+        "efeito": "cura",
+        "hp_recupera": 200,
+        "preco": 150,
+        "raridade": "rara",
+        "desc": "Restaura 200 HP"
+    },
+    
+    # CONSUMÍVEIS - BUFFS
+    "Poção de Força": {
+        "tipo": "consumivel",
+        "efeito": "buff_ataque",
+        "buff_valor": 10,
+        "buff_turnos": 3,
+        "preco": 50,
+        "raridade": "rara",
+        "desc": "🔥 +10 ATK por 3 turnos"
+    },
+    "Poção de Ferro": {
+        "tipo": "consumivel",
+        "efeito": "buff_defesa",
+        "buff_valor": 8,
+        "buff_turnos": 3,
+        "preco": 50,
+        "raridade": "rara",
+        "desc": "🛡️ +8 DEF por 3 turnos"
+    },
+    "Poção de Fúria": {
+        "tipo": "consumivel",
+        "efeito": "buff_critico",
+        "buff_valor": 30,  # +30% chance de crítico
+        "buff_turnos": 4,
+        "preco": 80,
+        "raridade": "épica",
+        "desc": "⚡ +30% Crítico por 4 turnos"
+    },
+    "Poção de Berserker": {
+        "tipo": "consumivel",
+        "efeito": "buff_ataque",
+        "buff_valor": 20,
+        "buff_turnos": 2,
+        "preco": 100,
+        "raridade": "épica",
+        "desc": "💥 +20 ATK por 2 turnos"
+    },
+}
+
+# ============================================
+# MONSTROS EXPANDIDOS (com mais variedade)
+# ============================================
+MONSTROS = {
+    # Level 1-3 - Fáceis
+    "tier1": [
+        {
+            "nome": "Slime Verde",
+            "hp": 30,
+            "ataque": 5,
+            "defesa": 2,
+            "gold_min": 5,
+            "gold_max": 15,
+            "xp": 20,
+            "tipo": "comum",
+            "img": "https://picsum.photos/seed/slime/400/300"
+        },
+        {
+            "nome": "Goblin Ladrão",
+            "hp": 40,
+            "ataque": 8,
+            "defesa": 3,
+            "gold_min": 8,
+            "gold_max": 20,
+            "xp": 30,
+            "tipo": "comum",
+            "img": "https://picsum.photos/seed/goblin/400/300"
+        },
+        {
+            "nome": "Rato Gigante",
+            "hp": 35,
+            "ataque": 6,
+            "defesa": 2,
+            "gold_min": 5,
+            "gold_max": 12,
+            "xp": 25,
+            "tipo": "comum",
+            "img": "https://picsum.photos/seed/rat/400/300"
+        },
+    ],
+    
+    # Level 4-7 - Médios
+    "tier2": [
+        {
+            "nome": "Lobo Selvagem",
+            "hp": 70,
+            "ataque": 12,
+            "defesa": 5,
+            "gold_min": 15,
+            "gold_max": 30,
+            "xp": 50,
+            "tipo": "comum",
+            "img": "https://picsum.photos/seed/wolf/400/300"
+        },
+        {
+            "nome": "Orc Guerreiro",
+            "hp": 90,
+            "ataque": 15,
+            "defesa": 8,
+            "gold_min": 20,
+            "gold_max": 40,
+            "xp": 70,
+            "tipo": "comum",
+            "img": "https://picsum.photos/seed/orc/400/300"
+        },
+        {
+            "nome": "Aranha Venenosa",
+            "hp": 60,
+            "ataque": 14,
+            "defesa": 4,
+            "gold_min": 18,
+            "gold_max": 35,
+            "xp": 60,
+            "tipo": "comum",
+            "img": "https://picsum.photos/seed/spider/400/300"
+        },
+        {
+            "nome": "Bandido Mascarado",
+            "hp": 75,
+            "ataque": 13,
+            "defesa": 6,
+            "gold_min": 25,
+            "gold_max": 50,
+            "xp": 65,
+            "tipo": "comum",
+            "img": "https://picsum.photos/seed/bandit/400/300"
+        },
+    ],
+    
+    # Level 8+ - Difíceis
+    "tier3": [
+        {
+            "nome": "Dragão Jovem",
+            "hp": 150,
+            "ataque": 25,
+            "defesa": 12,
+            "gold_min": 50,
+            "gold_max": 100,
+            "xp": 150,
+            "tipo": "comum",
+            "img": "https://picsum.photos/seed/dragon/400/300"
+        },
+        {
+            "nome": "Demônio Menor",
+            "hp": 120,
+            "ataque": 30,
+            "defesa": 10,
+            "gold_min": 40,
+            "gold_max": 80,
+            "xp": 120,
+            "tipo": "comum",
+            "img": "https://picsum.photos/seed/demon/400/300"
+        },
+        {
+            "nome": "Cavaleiro das Trevas",
+            "hp": 140,
+            "ataque": 28,
+            "defesa": 15,
+            "gold_min": 60,
+            "gold_max": 120,
+            "xp": 140,
+            "tipo": "comum",
+            "img": "https://picsum.photos/seed/darkknight/400/300"
+        },
+    ],
+    
+    # MINI BOSSES (10% de chance)
+    "miniboss1": [
+        {
+            "nome": "👑 Rei Goblin",
+            "hp": 100,
+            "ataque": 18,
+            "defesa": 8,
+            "gold_min": 50,
+            "gold_max": 100,
+            "xp": 100,
+            "tipo": "miniboss",
+            "img": "https://picsum.photos/seed/goblinboss/400/300"
+        },
+    ],
+    "miniboss2": [
+        {
+            "nome": "👑 Alfa Selvagem",
+            "hp": 150,
+            "ataque": 25,
+            "defesa": 12,
+            "gold_min": 80,
+            "gold_max": 150,
+            "xp": 150,
+            "tipo": "miniboss",
+            "img": "https://picsum.photos/seed/alphaboss/400/300"
+        },
+    ],
+    "miniboss3": [
+        {
+            "nome": "👑 Senhor Demônio",
+            "hp": 250,
+            "ataque": 40,
+            "defesa": 20,
+            "gold_min": 150,
+            "gold_max": 300,
+            "xp": 250,
+            "tipo": "miniboss",
+            "img": "https://picsum.photos/seed/demonlord/400/300"
+        },
+    ],
 }
 
 # ============================================
@@ -95,17 +332,14 @@ def adicionar_item(uid, item_nome, quantidade=1):
         conn.close()
         return False
     
-    # Verificar se já tem o item
     c.execute('SELECT id, quantidade FROM inventario WHERE user_id = ? AND item_nome = ?', 
               (uid, item_nome))
     resultado = c.fetchone()
     
     if resultado:
-        # Já tem, aumentar quantidade
         nova_qtd = resultado[1] + quantidade
         c.execute('UPDATE inventario SET quantidade = ? WHERE id = ?', (nova_qtd, resultado[0]))
     else:
-        # Não tem, adicionar novo
         c.execute('INSERT INTO inventario (user_id, item_nome, item_tipo, quantidade) VALUES (?, ?, ?, ?)',
                  (uid, item_nome, item['tipo'], quantidade))
     
@@ -153,7 +387,6 @@ def equipar_item(uid, item_nome):
     
     item = ITENS[item_nome]
     
-    # Verificar se tem o item no inventário
     inventario = obter_inventario(uid)
     if not any(i['nome'] == item_nome for i in inventario):
         return False
@@ -238,27 +471,6 @@ CLASSES = {
 }
 
 # ============================================
-# MONSTROS (Aumentam de dificuldade)
-# ============================================
-MONSTROS = {
-    # Level 1-3
-    "tier1": [
-        {"nome": "Slime", "hp": 30, "ataque": 5, "gold_min": 5, "gold_max": 15, "xp": 20},
-        {"nome": "Goblin", "hp": 40, "ataque": 8, "gold_min": 8, "gold_max": 20, "xp": 30},
-    ],
-    # Level 4-7
-    "tier2": [
-        {"nome": "Lobo", "hp": 60, "ataque": 12, "gold_min": 15, "gold_max": 30, "xp": 50},
-        {"nome": "Orc", "hp": 80, "ataque": 15, "gold_min": 20, "gold_max": 40, "xp": 70},
-    ],
-    # Level 8+
-    "tier3": [
-        {"nome": "Dragão Jovem", "hp": 150, "ataque": 25, "gold_min": 50, "gold_max": 100, "xp": 150},
-        {"nome": "Demônio", "hp": 120, "ataque": 30, "gold_min": 40, "gold_max": 80, "xp": 120},
-    ]
-}
-
-# ============================================
 # BANCO DE DADOS
 # ============================================
 def criar_banco():
@@ -282,7 +494,6 @@ def criar_banco():
         derrotas INTEGER DEFAULT 0
     )''')
     
-    # Tabela de inventário
     c.execute('''CREATE TABLE IF NOT EXISTS inventario (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -292,11 +503,35 @@ def criar_banco():
         FOREIGN KEY (user_id) REFERENCES players (user_id)
     )''')
     
-    # Tabela de equipamentos
     c.execute('''CREATE TABLE IF NOT EXISTS equipamentos (
         user_id INTEGER PRIMARY KEY,
         arma TEXT,
         armadura TEXT,
+        FOREIGN KEY (user_id) REFERENCES players (user_id)
+    )''')
+    
+    # Nova tabela para combate em andamento
+    c.execute('''CREATE TABLE IF NOT EXISTS combate_atual (
+        user_id INTEGER PRIMARY KEY,
+        monstro_nome TEXT NOT NULL,
+        monstro_hp_max INTEGER NOT NULL,
+        monstro_hp_atual INTEGER NOT NULL,
+        monstro_ataque INTEGER NOT NULL,
+        monstro_defesa INTEGER NOT NULL,
+        monstro_gold_min INTEGER NOT NULL,
+        monstro_gold_max INTEGER NOT NULL,
+        monstro_xp INTEGER NOT NULL,
+        monstro_tipo TEXT NOT NULL,
+        monstro_img TEXT NOT NULL,
+        player_hp_inicio INTEGER NOT NULL,
+        defendendo INTEGER DEFAULT 0,
+        buff_ataque INTEGER DEFAULT 0,
+        buff_ataque_turnos INTEGER DEFAULT 0,
+        buff_defesa INTEGER DEFAULT 0,
+        buff_defesa_turnos INTEGER DEFAULT 0,
+        buff_critico INTEGER DEFAULT 0,
+        buff_critico_turnos INTEGER DEFAULT 0,
+        turno INTEGER DEFAULT 1,
         FOREIGN KEY (user_id) REFERENCES players (user_id)
     )''')
     
@@ -352,8 +587,108 @@ def deletar_player(uid):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute('DELETE FROM players WHERE user_id = ?', (uid,))
+    c.execute('DELETE FROM combate_atual WHERE user_id = ?', (uid,))
     conn.commit()
     conn.close()
+
+# ============================================
+# FUNÇÕES DE COMBATE
+# ============================================
+def salvar_combate(uid, dados_combate):
+    """Salva estado do combate"""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    
+    c.execute('''INSERT OR REPLACE INTO combate_atual 
+                 (user_id, monstro_nome, monstro_hp_max, monstro_hp_atual,
+                  monstro_ataque, monstro_defesa, monstro_gold_min, monstro_gold_max,
+                  monstro_xp, monstro_tipo, monstro_img, player_hp_inicio,
+                  defendendo, buff_ataque, buff_ataque_turnos, buff_defesa, 
+                  buff_defesa_turnos, buff_critico, buff_critico_turnos, turno)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+              (uid, dados_combate['monstro_nome'], dados_combate['monstro_hp_max'],
+               dados_combate['monstro_hp_atual'], dados_combate['monstro_ataque'],
+               dados_combate['monstro_defesa'], dados_combate['monstro_gold_min'],
+               dados_combate['monstro_gold_max'], dados_combate['monstro_xp'],
+               dados_combate['monstro_tipo'], dados_combate['monstro_img'],
+               dados_combate['player_hp_inicio'], dados_combate.get('defendendo', 0),
+               dados_combate.get('buff_ataque', 0), dados_combate.get('buff_ataque_turnos', 0),
+               dados_combate.get('buff_defesa', 0), dados_combate.get('buff_defesa_turnos', 0),
+               dados_combate.get('buff_critico', 0), dados_combate.get('buff_critico_turnos', 0),
+               dados_combate.get('turno', 1)))
+    
+    conn.commit()
+    conn.close()
+
+def carregar_combate(uid):
+    """Carrega estado do combate"""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    
+    c.execute('SELECT * FROM combate_atual WHERE user_id = ?', (uid,))
+    row = c.fetchone()
+    conn.close()
+    
+    if row:
+        return {
+            'monstro_nome': row[1],
+            'monstro_hp_max': row[2],
+            'monstro_hp_atual': row[3],
+            'monstro_ataque': row[4],
+            'monstro_defesa': row[5],
+            'monstro_gold_min': row[6],
+            'monstro_gold_max': row[7],
+            'monstro_xp': row[8],
+            'monstro_tipo': row[9],
+            'monstro_img': row[10],
+            'player_hp_inicio': row[11],
+            'defendendo': row[12],
+            'buff_ataque': row[13],
+            'buff_ataque_turnos': row[14],
+            'buff_defesa': row[15],
+            'buff_defesa_turnos': row[16],
+            'buff_critico': row[17],
+            'buff_critico_turnos': row[18],
+            'turno': row[19]
+        }
+    return None
+
+def deletar_combate(uid):
+    """Remove combate do banco"""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('DELETE FROM combate_atual WHERE user_id = ?', (uid,))
+    conn.commit()
+    conn.close()
+
+def escolher_monstro(player_level):
+    """Escolhe monstro apropriado (com chance de miniboss)"""
+    # 10% de chance de miniboss
+    if random.random() < 0.10:
+        if player_level <= 3:
+            monstro = random.choice(MONSTROS["miniboss1"]).copy()
+        elif player_level <= 7:
+            monstro = random.choice(MONSTROS["miniboss2"]).copy()
+        else:
+            monstro = random.choice(MONSTROS["miniboss3"]).copy()
+    else:
+        # Monstro normal
+        if player_level <= 3:
+            tier = "tier1"
+        elif player_level <= 7:
+            tier = "tier2"
+        else:
+            tier = "tier3"
+        
+        monstro = random.choice(MONSTROS[tier]).copy()
+    
+    # Escalar monstro com level do player
+    nivel_multiplicador = 1 + (player_level - 1) * 0.1
+    monstro['hp'] = int(monstro['hp'] * nivel_multiplicador)
+    monstro['ataque'] = int(monstro['ataque'] * nivel_multiplicador)
+    monstro['defesa'] = int(monstro['defesa'] * nivel_multiplicador)
+    
+    return monstro
 
 # ============================================
 # SISTEMA DE PROGRESSÃO
@@ -371,13 +706,11 @@ def aplicar_level_up(uid):
         player['xp'] -= xp_para_proximo_level(player['level'])
         player['level'] += 1
         
-        # Aumentar stats
         player['hp_max'] += 20
         player['energia_max'] += 5
         player['ataque'] += 3
         player['defesa'] += 2
         
-        # Restaurar HP e energia
         player['hp_atual'] = player['hp_max']
         player['energia_atual'] = player['energia_max']
         
@@ -388,63 +721,12 @@ def aplicar_level_up(uid):
     return msgs
 
 # ============================================
-# SISTEMA DE COMBATE
-# ============================================
-def escolher_monstro(player_level):
-    """Escolhe monstro apropriado para o level"""
-    if player_level <= 3:
-        tier = "tier1"
-    elif player_level <= 7:
-        tier = "tier2"
-    else:
-        tier = "tier3"
-    
-    monstro = random.choice(MONSTROS[tier]).copy()
-    return monstro
-
-def simular_combate(player, monstro):
-    """Simula combate completo"""
-    hp_player = player['hp_atual']
-    hp_monstro = monstro['hp']
-    log = []
-    
-    turno = 1
-    while hp_player > 0 and hp_monstro > 0 and turno <= 20:
-        # Turno do player
-        dano = max(1, player['ataque'] - (monstro.get('defesa', 0) // 2))
-        dano += random.randint(-2, 5)  # Variação
-        
-        # Chance de crítico (15%)
-        if random.random() < 0.15:
-            dano = int(dano * 1.5)
-            log.append(f"⚔️ Você deu {dano} CRÍTICO!")
-        else:
-            log.append(f"⚔️ Você deu {dano} de dano")
-        
-        hp_monstro -= dano
-        
-        if hp_monstro <= 0:
-            break
-        
-        # Turno do monstro
-        dano_monstro = max(1, monstro['ataque'] - (player['defesa'] // 2))
-        dano_monstro += random.randint(-1, 3)
-        hp_player -= dano_monstro
-        
-        log.append(f"💥 {monstro['nome']} causou {dano_monstro} de dano")
-        
-        turno += 1
-    
-    vitoria = hp_player > 0
-    return vitoria, hp_player, log
-
-# ============================================
 # INTERFACE - MENUS
 # ============================================
 def criar_barra(atual, maximo, tipo="hp"):
-    """Cria barra de progresso visual BONITA"""
+    """Cria barra de progresso visual"""
     porcentagem = atual / maximo if maximo > 0 else 0
-    cheios = int(porcentagem * 5)  # 5 blocos
+    cheios = int(porcentagem * 5)
     vazios = 5 - cheios
     
     if tipo == "hp":
@@ -459,12 +741,10 @@ def menu_principal(uid):
     p = carregar_player(uid)
     classe_info = CLASSES[p['classe']]
     
-    # Calcular bônus de equipamentos
     bonus_atk, bonus_def = calcular_bonus_equipamentos(uid)
     atk_total = p['ataque'] + bonus_atk
     def_total = p['defesa'] + bonus_def
     
-    # Barras BONITAS com emojis coloridos
     barra_hp = criar_barra(p['hp_atual'], p['hp_max'], "hp")
     barra_en = criar_barra(p['energia_atual'], p['energia_max'], "energia")
     barra_xp = criar_barra(p['xp'], xp_para_proximo_level(p['level']), "xp")
@@ -477,7 +757,6 @@ def menu_principal(uid):
 💰 Gold: {p['gold']}
 """
     
-    # Mostrar equipamentos se tiver
     if bonus_atk > 0 or bonus_def > 0:
         texto += f"⚔️ ATK: {p['ataque']} (+{bonus_atk}) | 🛡️ DEF: {p['defesa']} (+{bonus_def})\n"
     else:
@@ -493,17 +772,98 @@ def menu_principal(uid):
     
     return texto, InlineKeyboardMarkup(botoes), classe_info['img']
 
+def menu_combate(uid):
+    """Menu de combate em turno"""
+    player = carregar_player(uid)
+    combate = carregar_combate(uid)
+    
+    if not combate:
+        return None, None, None
+    
+    bonus_atk, bonus_def = calcular_bonus_equipamentos(uid)
+    
+    # Aplicar buffs
+    atk_total = player['ataque'] + bonus_atk + combate.get('buff_ataque', 0)
+    def_total = player['defesa'] + bonus_def + combate.get('buff_defesa', 0)
+    
+    barra_player = criar_barra(player['hp_atual'], player['hp_max'], "hp")
+    barra_monstro = criar_barra(combate['monstro_hp_atual'], combate['monstro_hp_max'], "hp")
+    
+    tipo_emoji = "👑" if combate['monstro_tipo'] == "miniboss" else "⚔️"
+    
+    texto = f"""{tipo_emoji} **COMBATE - Turno {combate['turno']}**
+
+**Você:**
+❤️ HP: {player['hp_atual']}/{player['hp_max']} {barra_player}
+⚔️ ATK: {atk_total} | 🛡️ DEF: {def_total}
+"""
+    
+    # Mostrar buffs ativos
+    buffs_ativos = []
+    if combate.get('buff_ataque_turnos', 0) > 0:
+        buffs_ativos.append(f"🔥 +{combate['buff_ataque']} ATK ({combate['buff_ataque_turnos']} turnos)")
+    if combate.get('buff_defesa_turnos', 0) > 0:
+        buffs_ativos.append(f"🛡️ +{combate['buff_defesa']} DEF ({combate['buff_defesa_turnos']} turnos)")
+    if combate.get('buff_critico_turnos', 0) > 0:
+        buffs_ativos.append(f"⚡ +{combate['buff_critico']}% Crítico ({combate['buff_critico_turnos']} turnos)")
+    if combate.get('defendendo', 0) == 1:
+        buffs_ativos.append("🛡️ DEFENDENDO")
+    
+    if buffs_ativos:
+        texto += "💫 Buffs: " + " | ".join(buffs_ativos) + "\n"
+    
+    texto += f"""
+**{combate['monstro_nome']}:**
+❤️ HP: {combate['monstro_hp_atual']}/{combate['monstro_hp_max']} {barra_monstro}
+⚔️ ATK: {combate['monstro_ataque']} | 🛡️ DEF: {combate['monstro_defesa']}
+
+━━━━━━━━━━━━━━━━
+**Sua ação:**"""
+    
+    botoes = [
+        [InlineKeyboardButton("⚔️ Atacar", callback_data='combate_atacar'),
+         InlineKeyboardButton("🛡️ Defender", callback_data='combate_defender')],
+        [InlineKeyboardButton("🧪 Usar Item", callback_data='combate_itens')],
+        [InlineKeyboardButton("🏃 Fugir", callback_data='combate_fugir')]
+    ]
+    
+    return texto, InlineKeyboardMarkup(botoes), combate['monstro_img']
+
+def menu_itens_combate(uid):
+    """Menu de itens durante combate"""
+    inventario = obter_inventario(uid)
+    consumiveis = [i for i in inventario if i['tipo'] == 'consumivel']
+    
+    if not consumiveis:
+        texto = "🎒 **INVENTÁRIO**\n\nVocê não tem itens consumíveis!"
+    else:
+        texto = "🎒 **INVENTÁRIO**\n\nEscolha um item para usar:\n\n"
+        for item in consumiveis:
+            info = ITENS.get(item['nome'], {})
+            texto += f"• {item['nome']} x{item['quantidade']}\n"
+            texto += f"  {info.get('desc', '')}\n\n"
+    
+    botoes = []
+    for item in consumiveis:
+        botoes.append([InlineKeyboardButton(
+            f"🧪 {item['nome']} (x{item['quantidade']})",
+            callback_data=f"usar_combate_{item['nome']}"
+        )])
+    
+    botoes.append([InlineKeyboardButton("◀️ Voltar ao Combate", callback_data='voltar_combate')])
+    
+    return texto, InlineKeyboardMarkup(botoes)
+
 def menu_inventario(uid):
     """Menu do inventário"""
     inventario = obter_inventario(uid)
     equip = obter_equipamentos(uid)
     
     if not inventario:
-        texto = "🎒 **INVENTÁRIO VAZIO**\n\nVocê não tem itens ainda.\nDerrot monstros para conseguir drops!"
+        texto = "🎒 **INVENTÁRIO VAZIO**\n\nVocê não tem itens ainda.\nDerrote monstros para conseguir drops!"
     else:
         texto = "🎒 **INVENTÁRIO**\n\n"
         
-        # Mostrar equipados
         if equip['arma']:
             texto += f"⚔️ Equipado: **{equip['arma']}**\n"
         if equip['armadura']:
@@ -511,7 +871,6 @@ def menu_inventario(uid):
         
         texto += "\n**Seus Itens:**\n"
         
-        # Agrupar por tipo
         armas = [i for i in inventario if i['tipo'] == 'arma']
         armaduras = [i for i in inventario if i['tipo'] == 'armadura']
         consumiveis = [i for i in inventario if i['tipo'] == 'consumivel']
@@ -538,12 +897,9 @@ def menu_inventario(uid):
             texto += "\n🧪 **Consumíveis:**\n"
             for item in consumiveis:
                 info = ITENS.get(item['nome'], {})
-                texto += f"  • {item['nome']} x{item['quantidade']}"
-                if 'hp_recupera' in info:
-                    texto += f" (+{info['hp_recupera']} HP)"
-                texto += "\n"
+                texto += f"  • {item['nome']} x{item['quantidade']}\n"
+                texto += f"    {info.get('desc', '')}\n"
     
-    # Botões para cada item
     botoes = []
     for item in inventario:
         if item['tipo'] in ['arma', 'armadura']:
@@ -649,7 +1005,6 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     player = carregar_player(uid)
     
     if player:
-        # Player existe, mostrar menu
         txt, kb, img = menu_principal(uid)
         await context.bot.send_photo(
             chat_id=uid,
@@ -659,10 +1014,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
     else:
-        # Novo player, escolher classe
         img_inicio = "https://picsum.photos/seed/rpgstart/400/300"
         
-        # Texto de apresentação
         texto_inicial = "✨ **BEM-VINDO AO RPG!**\n\nEscolha sua classe:\n\n"
         
         for nome, info in CLASSES.items():
@@ -710,16 +1063,22 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         
         salvar_player(uid, novo_player)
+        
+        # Dar itens iniciais
+        adicionar_item(uid, "Espada de Madeira", 1)
+        adicionar_item(uid, "Roupa de Pano", 1)
+        adicionar_item(uid, "Poção de Vida", 3)
+        
         txt, kb, img = menu_principal(uid)
         
         await q.edit_message_media(media=InputMediaPhoto(classe['img']))
         await q.edit_message_caption(
-            caption=f"✅ Você é agora um **{classe_nome}**!\n\n{txt}",
+            caption=f"✅ Você é agora um **{classe_nome}**!\n\n🎁 Itens iniciais recebidos!\n\n{txt}",
             reply_markup=kb,
             parse_mode='Markdown'
         )
     
-    # ===== CAÇAR MONSTROS =====
+    # ===== CAÇAR - INICIAR COMBATE =====
     elif q.data == 'cacar':
         player = carregar_player(uid)
         
@@ -729,66 +1088,412 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Gastar energia
         player['energia_atual'] -= 2
+        salvar_player(uid, player)
         
         # Escolher monstro
         monstro = escolher_monstro(player['level'])
         
-        # Combate!
-        vitoria, hp_final, log_combate = simular_combate(player, monstro)
+        # Criar combate
+        dados_combate = {
+            'monstro_nome': monstro['nome'],
+            'monstro_hp_max': monstro['hp'],
+            'monstro_hp_atual': monstro['hp'],
+            'monstro_ataque': monstro['ataque'],
+            'monstro_defesa': monstro['defesa'],
+            'monstro_gold_min': monstro['gold_min'],
+            'monstro_gold_max': monstro['gold_max'],
+            'monstro_xp': monstro['xp'],
+            'monstro_tipo': monstro['tipo'],
+            'monstro_img': monstro['img'],
+            'player_hp_inicio': player['hp_atual'],
+            'defendendo': 0,
+            'buff_ataque': 0,
+            'buff_ataque_turnos': 0,
+            'buff_defesa': 0,
+            'buff_defesa_turnos': 0,
+            'buff_critico': 0,
+            'buff_critico_turnos': 0,
+            'turno': 1
+        }
         
-        resultado = f"⚔️ **COMBATE vs {monstro['nome']}**\n\n"
-        resultado += "\n".join(log_combate[:6])  # Mostrar alguns turnos
+        salvar_combate(uid, dados_combate)
         
-        if vitoria:
-            gold_ganho = random.randint(monstro['gold_min'], monstro['gold_max'])
-            xp_ganho = monstro['xp']
+        txt, kb, img = menu_combate(uid)
+        
+        tipo_msg = "⚠️ **UM MINI BOSS APARECEU!**" if monstro['tipo'] == 'miniboss' else "⚔️ **Um inimigo apareceu!**"
+        
+        await q.edit_message_media(media=InputMediaPhoto(img))
+        await q.edit_message_caption(
+            caption=f"{tipo_msg}\n\n{txt}",
+            reply_markup=kb,
+            parse_mode='Markdown'
+        )
+    
+    # ===== COMBATE - ATACAR =====
+    elif q.data == 'combate_atacar':
+        player = carregar_player(uid)
+        combate = carregar_combate(uid)
+        
+        bonus_atk, bonus_def = calcular_bonus_equipamentos(uid)
+        
+        # Calcular dano do player
+        atk_base = player['ataque'] + bonus_atk + combate.get('buff_ataque', 0)
+        dano_player = max(1, atk_base - (combate['monstro_defesa'] // 2))
+        dano_player += random.randint(-2, 5)
+        
+        # Chance de crítico (15% base + buff)
+        chance_critico = 0.15 + (combate.get('buff_critico', 0) / 100)
+        critico = random.random() < chance_critico
+        
+        if critico:
+            dano_player = int(dano_player * 1.8)
+            msg_ataque = f"⚡ **CRÍTICO!** Você causou {dano_player} de dano!"
+        else:
+            msg_ataque = f"⚔️ Você causou {dano_player} de dano!"
+        
+        combate['monstro_hp_atual'] -= dano_player
+        
+        # Verificar se monstro morreu
+        if combate['monstro_hp_atual'] <= 0:
+            gold_ganho = random.randint(combate['monstro_gold_min'], combate['monstro_gold_max'])
+            xp_ganho = combate['monstro_xp']
             
-            player['hp_atual'] = hp_final
             player['gold'] += gold_ganho
             player['xp'] += xp_ganho
             player['vitorias'] += 1
             
-            resultado += f"\n\n✅ **VITÓRIA!**\n💰 +{gold_ganho} gold\n⭐ +{xp_ganho} XP"
+            resultado = f"""🎉 **VITÓRIA!**
+
+{msg_ataque}
+
+{combate['monstro_nome']} foi derrotado!
+
+💰 +{gold_ganho} gold
+⭐ +{xp_ganho} XP
+"""
             
-            # Sistema de drops (30% de chance)
-            if random.random() < 0.3:
-                # Escolher item baseado no level
+            # Sistema de drops melhorado
+            chance_drop = 0.5 if combate['monstro_tipo'] == 'miniboss' else 0.3
+            
+            if random.random() < chance_drop:
                 itens_drop = []
+                
                 for nome, item in ITENS.items():
-                    if item['tipo'] in ['arma', 'armadura']:
-                        # Só dropar itens apropriados pro level
-                        if player['level'] <= 3 and 'Madeira' in nome or 'Pano' in nome:
+                    raridade = item.get('raridade', 'comum')
+                    
+                    if combate['monstro_tipo'] == 'miniboss':
+                        # Miniboss dropa itens melhores
+                        if raridade in ['rara', 'épica']:
                             itens_drop.append(nome)
-                        elif player['level'] <= 7 and 'Ferro' in nome or 'Couro' in nome:
+                    else:
+                        # Monstros normais dropam baseado no level
+                        if player['level'] <= 3 and raridade == 'comum':
+                            itens_drop.append(nome)
+                        elif player['level'] <= 7 and raridade in ['comum', 'rara']:
                             itens_drop.append(nome)
                         elif player['level'] > 7:
                             itens_drop.append(nome)
-                    elif item['tipo'] == 'consumivel':
-                        itens_drop.append(nome)
                 
                 if itens_drop:
                     item_dropado = random.choice(itens_drop)
                     adicionar_item(uid, item_dropado)
-                    resultado += f"\n🎁 Item dropado: **{item_dropado}**!"
+                    raridade_emoji = {"comum": "⚪", "rara": "🔵", "épica": "🟣"}.get(
+                        ITENS[item_dropado].get('raridade', 'comum'), "⚪"
+                    )
+                    resultado += f"\n{raridade_emoji} **Item dropado:** {item_dropado}!"
             
             salvar_player(uid, player)
-            msgs_levelup = aplicar_level_up(uid)
+            deletar_combate(uid)
             
+            msgs_levelup = aplicar_level_up(uid)
             if msgs_levelup:
                 resultado += "\n\n" + "\n".join(msgs_levelup)
+            
+            txt, kb, img = menu_principal(uid)
+            
+            await q.edit_message_caption(
+                caption=resultado + "\n\n━━━━━━━━━━\n" + txt,
+                reply_markup=kb,
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Turno do monstro
+        def_base = player['defesa'] + bonus_def + combate.get('buff_defesa', 0)
+        
+        # Se estava defendendo, dobra a defesa
+        if combate.get('defendendo', 0) == 1:
+            def_base = int(def_base * 2)
+            combate['defendendo'] = 0
+            msg_defesa = "\n🛡️ Você defendeu! Defesa dobrada!"
         else:
+            msg_defesa = ""
+        
+        dano_monstro = max(1, combate['monstro_ataque'] - (def_base // 2))
+        dano_monstro += random.randint(-1, 3)
+        
+        player['hp_atual'] -= dano_monstro
+        msg_monstro = f"\n💥 {combate['monstro_nome']} causou {dano_monstro} de dano!"
+        
+        # Reduzir turnos dos buffs
+        if combate.get('buff_ataque_turnos', 0) > 0:
+            combate['buff_ataque_turnos'] -= 1
+            if combate['buff_ataque_turnos'] <= 0:
+                combate['buff_ataque'] = 0
+        
+        if combate.get('buff_defesa_turnos', 0) > 0:
+            combate['buff_defesa_turnos'] -= 1
+            if combate['buff_defesa_turnos'] <= 0:
+                combate['buff_defesa'] = 0
+        
+        if combate.get('buff_critico_turnos', 0) > 0:
+            combate['buff_critico_turnos'] -= 1
+            if combate['buff_critico_turnos'] <= 0:
+                combate['buff_critico'] = 0
+        
+        # Verificar se player morreu
+        if player['hp_atual'] <= 0:
             player['hp_atual'] = player['hp_max'] // 2
             player['derrotas'] += 1
-            resultado += f"\n\n☠️ **DERROTA!**\nVocê fugiu com {player['hp_atual']} HP"
+            
+            resultado = f"""☠️ **DERROTA!**
+
+{msg_ataque}{msg_defesa}{msg_monstro}
+
+Você foi derrotado e fugiu!
+HP restaurado para {player['hp_atual']}.
+"""
+            
             salvar_player(uid, player)
+            deletar_combate(uid)
+            
+            txt, kb, img = menu_principal(uid)
+            
+            await q.edit_message_caption(
+                caption=resultado + "\n\n━━━━━━━━━━\n" + txt,
+                reply_markup=kb,
+                parse_mode='Markdown'
+            )
+            return
         
-        txt, kb, img = menu_principal(uid)
+        combate['turno'] += 1
+        salvar_player(uid, player)
+        salvar_combate(uid, combate)
+        
+        txt, kb, img = menu_combate(uid)
         
         await q.edit_message_caption(
-            caption=resultado + "\n\n━━━━━━━━━━\n" + txt,
+            caption=f"{msg_ataque}{msg_defesa}{msg_monstro}\n\n{txt}",
             reply_markup=kb,
             parse_mode='Markdown'
         )
+    
+    # ===== COMBATE - DEFENDER =====
+    elif q.data == 'combate_defender':
+        combate = carregar_combate(uid)
+        combate['defendendo'] = 1
+        
+        # Turno do monstro (mas player vai defender no próximo ataque)
+        player = carregar_player(uid)
+        bonus_atk, bonus_def = calcular_bonus_equipamentos(uid)
+        
+        def_base = player['defesa'] + bonus_def + combate.get('buff_defesa', 0)
+        dano_monstro = max(1, combate['monstro_ataque'] - def_base)
+        dano_monstro += random.randint(-1, 2)
+        
+        player['hp_atual'] -= dano_monstro
+        msg = f"🛡️ Você se preparou para defender!\n💥 {combate['monstro_nome']} causou {dano_monstro} de dano!"
+        
+        # Reduzir buffs
+        if combate.get('buff_ataque_turnos', 0) > 0:
+            combate['buff_ataque_turnos'] -= 1
+            if combate['buff_ataque_turnos'] <= 0:
+                combate['buff_ataque'] = 0
+        
+        if combate.get('buff_defesa_turnos', 0) > 0:
+            combate['buff_defesa_turnos'] -= 1
+            if combate['buff_defesa_turnos'] <= 0:
+                combate['buff_defesa'] = 0
+        
+        if combate.get('buff_critico_turnos', 0) > 0:
+            combate['buff_critico_turnos'] -= 1
+            if combate['buff_critico_turnos'] <= 0:
+                combate['buff_critico'] = 0
+        
+        if player['hp_atual'] <= 0:
+            player['hp_atual'] = player['hp_max'] // 2
+            player['derrotas'] += 1
+            
+            resultado = f"""☠️ **DERROTA!**
+
+{msg}
+
+Você foi derrotado!
+HP restaurado para {player['hp_atual']}.
+"""
+            
+            salvar_player(uid, player)
+            deletar_combate(uid)
+            
+            txt, kb, img = menu_principal(uid)
+            
+            await q.edit_message_caption(
+                caption=resultado + "\n\n━━━━━━━━━━\n" + txt,
+                reply_markup=kb,
+                parse_mode='Markdown'
+            )
+            return
+        
+        combate['turno'] += 1
+        salvar_player(uid, player)
+        salvar_combate(uid, combate)
+        
+        txt, kb, img = menu_combate(uid)
+        
+        await q.edit_message_caption(
+            caption=f"{msg}\n\n{txt}",
+            reply_markup=kb,
+            parse_mode='Markdown'
+        )
+    
+    # ===== COMBATE - USAR ITENS =====
+    elif q.data == 'combate_itens':
+        txt, kb = menu_itens_combate(uid)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+    
+    # ===== USAR ITEM NO COMBATE =====
+    elif q.data.startswith('usar_combate_'):
+        item_nome = q.data.replace('usar_combate_', '')
+        item = ITENS.get(item_nome)
+        
+        if not item:
+            await q.answer("❌ Item não encontrado!", show_alert=True)
+            return
+        
+        player = carregar_player(uid)
+        combate = carregar_combate(uid)
+        
+        efeito = item.get('efeito')
+        msg_efeito = ""
+        
+        if efeito == 'cura':
+            hp_antes = player['hp_atual']
+            player['hp_atual'] = min(player['hp_max'], player['hp_atual'] + item['hp_recupera'])
+            hp_ganho = player['hp_atual'] - hp_antes
+            msg_efeito = f"❤️ Você usou **{item_nome}**!\nRecuperou {hp_ganho} HP!"
+        
+        elif efeito == 'buff_ataque':
+            combate['buff_ataque'] = item['buff_valor']
+            combate['buff_ataque_turnos'] = item['buff_turnos']
+            msg_efeito = f"🔥 Você usou **{item_nome}**!\n+{item['buff_valor']} ATK por {item['buff_turnos']} turnos!"
+        
+        elif efeito == 'buff_defesa':
+            combate['buff_defesa'] = item['buff_valor']
+            combate['buff_defesa_turnos'] = item['buff_turnos']
+            msg_efeito = f"🛡️ Você usou **{item_nome}**!\n+{item['buff_valor']} DEF por {item['buff_turnos']} turnos!"
+        
+        elif efeito == 'buff_critico':
+            combate['buff_critico'] = item['buff_valor']
+            combate['buff_critico_turnos'] = item['buff_turnos']
+            msg_efeito = f"⚡ Você usou **{item_nome}**!\n+{item['buff_valor']}% Crítico por {item['buff_turnos']} turnos!"
+        
+        remover_item(uid, item_nome)
+        
+        # Turno do monstro
+        bonus_atk, bonus_def = calcular_bonus_equipamentos(uid)
+        def_base = player['defesa'] + bonus_def + combate.get('buff_defesa', 0)
+        
+        dano_monstro = max(1, combate['monstro_ataque'] - (def_base // 2))
+        dano_monstro += random.randint(-1, 3)
+        player['hp_atual'] -= dano_monstro
+        
+        msg_monstro = f"\n💥 {combate['monstro_nome']} causou {dano_monstro} de dano!"
+        
+        if player['hp_atual'] <= 0:
+            player['hp_atual'] = player['hp_max'] // 2
+            player['derrotas'] += 1
+            
+            resultado = f"""☠️ **DERROTA!**
+
+{msg_efeito}{msg_monstro}
+
+Você foi derrotado!
+"""
+            
+            salvar_player(uid, player)
+            deletar_combate(uid)
+            
+            txt, kb, img = menu_principal(uid)
+            
+            await q.edit_message_caption(
+                caption=resultado + "\n\n━━━━━━━━━━\n" + txt,
+                reply_markup=kb,
+                parse_mode='Markdown'
+            )
+            return
+        
+        combate['turno'] += 1
+        salvar_player(uid, player)
+        salvar_combate(uid, combate)
+        
+        txt, kb, img = menu_combate(uid)
+        
+        await q.edit_message_caption(
+            caption=f"{msg_efeito}{msg_monstro}\n\n{txt}",
+            reply_markup=kb,
+            parse_mode='Markdown'
+        )
+    
+    # ===== COMBATE - FUGIR =====
+    elif q.data == 'combate_fugir':
+        # 70% de chance de fugir
+        if random.random() < 0.7:
+            deletar_combate(uid)
+            txt, kb, img = menu_principal(uid)
+            
+            await q.edit_message_caption(
+                caption="🏃 **Você fugiu da batalha!**\n\n" + txt,
+                reply_markup=kb,
+                parse_mode='Markdown'
+            )
+        else:
+            player = carregar_player(uid)
+            combate = carregar_combate(uid)
+            
+            # Falhou ao fugir, monstro ataca
+            bonus_atk, bonus_def = calcular_bonus_equipamentos(uid)
+            def_base = player['defesa'] + bonus_def
+            
+            dano = max(1, combate['monstro_ataque'] - (def_base // 2))
+            player['hp_atual'] -= dano
+            
+            if player['hp_atual'] <= 0:
+                player['hp_atual'] = player['hp_max'] // 2
+                player['derrotas'] += 1
+                deletar_combate(uid)
+                
+                salvar_player(uid, player)
+                txt, kb, img = menu_principal(uid)
+                
+                await q.edit_message_caption(
+                    caption=f"❌ **Falha ao fugir!**\n\n💥 {combate['monstro_nome']} te atacou causando {dano} de dano!\n\nVocê foi derrotado!\n\n" + txt,
+                    reply_markup=kb,
+                    parse_mode='Markdown'
+                )
+            else:
+                salvar_player(uid, player)
+                txt, kb, img = menu_combate(uid)
+                
+                await q.edit_message_caption(
+                    caption=f"❌ **Falha ao fugir!**\n\n💥 {combate['monstro_nome']} te atacou causando {dano} de dano!\n\n{txt}",
+                    reply_markup=kb,
+                    parse_mode='Markdown'
+                )
+    
+    # ===== VOLTAR AO COMBATE =====
+    elif q.data == 'voltar_combate':
+        txt, kb, img = menu_combate(uid)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
     
     # ===== DESCANSAR =====
     elif q.data == 'descansar':
@@ -809,10 +1514,6 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
     
-    # ===== VIAJAR (em breve) =====
-    elif q.data == 'viajar':
-        await q.answer("🗺️ Em breve! Novas áreas virão...", show_alert=True)
-    
     # ===== INVENTÁRIO =====
     elif q.data == 'inventario':
         txt, kb = menu_inventario(uid)
@@ -828,19 +1529,24 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await q.answer("❌ Erro ao equipar item!", show_alert=True)
     
-    # ===== USAR CONSUMÍVEL =====
+    # ===== USAR CONSUMÍVEL FORA DE COMBATE =====
     elif q.data.startswith('usar_'):
         item_nome = q.data.replace('usar_', '')
         item = ITENS.get(item_nome)
         
         if item and item['tipo'] == 'consumivel':
             player = carregar_player(uid)
+            msg = ""
             
-            if 'hp_recupera' in item:
+            if item.get('efeito') == 'cura':
                 hp_antes = player['hp_atual']
                 player['hp_atual'] = min(player['hp_max'], player['hp_atual'] + item['hp_recupera'])
                 hp_ganho = player['hp_atual'] - hp_antes
                 msg = f"❤️ Recuperou {hp_ganho} HP!"
+            else:
+                msg = "⚠️ Este item só pode ser usado em combate!"
+                await q.answer(msg, show_alert=True)
+                return
             
             remover_item(uid, item_nome)
             salvar_player(uid, player)
@@ -873,6 +1579,7 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         c = conn.cursor()
         c.execute('DELETE FROM inventario WHERE user_id = ?', (uid,))
         c.execute('DELETE FROM equipamentos WHERE user_id = ?', (uid,))
+        c.execute('DELETE FROM combate_atual WHERE user_id = ?', (uid,))
         conn.commit()
         conn.close()
         
@@ -885,19 +1592,23 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ajuda = """❓ **GUIA DO JOGO**
 
 **⚔️ Caçar:**
-Gasta 2 energia para batalhar. Ganhe XP, gold e itens!
+Gasta 2 energia. Enfrente monstros em combate por turnos!
 
-**😴 Descansar:**
-Recupera HP e energia.
+**🎮 Combate:**
+• **Atacar** - Causa dano no inimigo
+• **Defender** - Dobra sua defesa no próximo turno
+• **Usar Item** - Use poções de cura ou buffs
+• **Fugir** - 70% de chance de escapar
 
-**🎒 Inventário:**
-Equipe armas/armaduras, use consumíveis.
+**🧪 Poções:**
+• Cura - Restaura HP
+• Buffs - Aumentam ATK/DEF/Crítico temporariamente
 
-**👤 Perfil:**
-Veja todas as estatísticas.
-
-**💡 Dica:**
-Equipe itens para ficar mais forte!"""
+**💡 Dicas:**
+• Equipe armas e armaduras melhores
+• Use poções de buff em combates difíceis
+• Defenda quando estiver com HP baixo
+• Mini-bosses (👑) dão rewards melhores!"""
         
         botoes = [[InlineKeyboardButton("◀️ Voltar", callback_data='menu_config')]]
         await q.edit_message_caption(caption=ajuda, reply_markup=InlineKeyboardMarkup(botoes), parse_mode='Markdown')
@@ -933,16 +1644,23 @@ Equipe itens para ficar mais forte!"""
 # INICIALIZAÇÃO
 # ============================================
 if __name__ == '__main__':
-    print("🚀 Iniciando RPG Bot...")
+    print("🚀 Iniciando RPG Bot Melhorado...")
     
-    # Criar banco de dados
     criar_banco()
     
-    # Iniciar bot Telegram
     print("✅ Configurando bot...")
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CallbackQueryHandler(processar_botoes))
     
-    print("✅ Bot ONLINE!")
+    print("✅ Bot ONLINE com sistema de combate em turnos!")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("🎮 Novas Features:")
+    print("  ✓ Combate em turnos (Atacar/Defender/Item)")
+    print("  ✓ 10+ tipos de monstros diferentes")
+    print("  ✓ Mini-bosses com 10% de chance")
+    print("  ✓ Poções com buffs temporários")
+    print("  ✓ Sistema de defesa estratégico")
+    print("  ✓ Drops com raridade")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     app.run_polling(drop_pending_updates=True)
