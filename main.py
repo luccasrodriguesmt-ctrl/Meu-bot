@@ -1415,44 +1415,44 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer()
     
     # ===== CRIAR PERSONAGEM =====
-    if q.data.startswith('criar_'):
-        classe_nome = q.data.replace('criar_', '')
-        classe = CLASSES[classe_nome]
+if q.data.startswith('classe_'):
+        classe_escolhida = q.data.replace('classe_', '')
         
-        # ✅ Gerar nome padrão baseado no ID do usuário
-        nome_padrao = f"Herói{uid % 10000}"
+        # O NOME DO PERSONAGEM SERÁ O NOME DA CLASSE (Ex: Guerreiro)
+        nome_personagem = classe_escolhida 
         
-        # ✅ Criar personagem IMEDIATAMENTE (sem pedir nome)
+        c_info = CLASSES[classe_escolhida]
+        
+        # CRIA O PERSONAGEM AUTOMATICAMENTE
         novo_player = {
-            'nome': nome_padrao,
-            'classe': classe_nome,
+            'nome': nome_personagem,
+            'classe': classe_escolhida,
             'level': 1,
             'xp': 0,
-            'hp_atual': classe['hp_base'],
-            'hp_max': classe['hp_base'],
-            'energia_atual': classe['energia_base'],
-            'energia_max': classe['energia_base'],
-            'ataque': classe['ataque_base'],
-            'defesa': classe['defesa_base'],
+            'hp_max': c_info['hp_base'],
+            'hp_atual': c_info['hp_base'],
+            'energia_max': c_info['energia_base'],
+            'energia_atual': c_info['energia_base'],
+            'ataque': c_info['ataque_base'],
+            'defesa': c_info['defesa_base'],
             'gold': 50,
             'vitorias': 0,
             'derrotas': 0,
-            'mapa_atual': 'Planície de Aether',
-            'ultima_energia_update': int(time.time())
+            'mapa_atual': 'Planície de Aether'
         }
         
         salvar_player(uid, novo_player)
         
-        # Dar itens iniciais
-        adicionar_item(uid, "Espada de Madeira", 1)
-        adicionar_item(uid, "Roupa de Pano", 1)
-        adicionar_item(uid, "Poção de Vida", 3)
-        
+        # JÁ ABRE O MENU PRINCIPAL NA HORA
         txt, kb, img = menu_principal(uid)
-        
-        await q.edit_message_media(media=InputMediaPhoto(img))
-        await q.edit_message_caption(
-            caption=f"""✅ **Bem-vindo, {nome_padrao}!**
+        await q.message.reply_photo(
+            photo=img, 
+            caption=f"✨ Personagem criado: **{nome_personagem}**!\n\n{txt}", 
+            reply_markup=kb, 
+            parse_mode='Markdown'
+        )
+        # Apaga a lista de classes para o chat ficar limpo
+        await q.delete_message()
 
 Você é agora um **{classe_nome}**!
 
@@ -2218,49 +2218,18 @@ Gasta 2 energia. Enfrente monstros em combate por turnos!
 # INICIALIZAÇÃO
 # ============================================
 if __name__ == '__main__':
-    print("🚀 Iniciando RPG Bot Melhorado...")
-    
     criar_banco()
     
     # Inicia o servidor Flask para o Render
+    from threading import Thread
     Thread(target=run_flask, daemon=True).start()
-    
-    print("✅ Configurando bot...")
     
     app = ApplicationBuilder().token(TOKEN).build()
     
-    # 🔥 LIMPAR WEBHOOK ANTES DE INICIAR (evita erro de conflito)
-    print("🧹 Limpando sessões antigas...")
-    import requests
-    try:
-        url = f"https://api.telegram.org/bot{TOKEN}/deleteWebhook?drop_pending_updates=true"
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            print("✅ Webhook limpo com sucesso!")
-        else:
-            print("⚠️ Webhook não encontrado (normal se primeira vez)")
-    except Exception as e:
-        print(f"⚠️ Erro ao limpar webhook: {e}")
-    
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CallbackQueryHandler(processar_botoes))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_mensagem))
     
-    print("✅ Bot ONLINE com sistema de combate em turnos!")
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print("🎮 Features Completas:")
-    print("  ✓ Criação de personagem AUTOMÁTICA")
-    print("  ✓ Combate em turnos (Atacar/Defender/Item)")
-    print("  ✓ 10+ tipos de monstros diferentes")
-    print("  ✓ Mini-bosses com 10% de chance")
-    print("  ✓ Poções com buffs temporários")
-    print("  ✓ 6 mapas diferentes com vilas e capitais")
-    print("  ✓ Sistema de LOJAS (Vila/Capital/Contrabandista)")
-    print("  ✓ Energia REGENERA automaticamente (1/5min)")
-    print("  ✓ Descanso PAGO (Acampamento/Casa/Pousada)")
-    print("  ✓ Botão MODO TESTE para desenvolvimento")
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    # MessageHandler removido pois não pedimos mais nome
     
-    # Usar allowed_updates para otimizar
-    print("🔄 Iniciando polling...")
+    print("✅ Bot ONLINE - Criação automática ativa!")
     app.run_polling(drop_pending_updates=True)
