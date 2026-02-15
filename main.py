@@ -471,6 +471,109 @@ CLASSES = {
 }
 
 # ============================================
+# SISTEMA DE MAPAS E LOCALIZAÇÕES
+# ============================================
+MAPAS = {
+    "Planície de Aether": {
+        "nivel_recomendado": 1,
+        "tier_monstros": "tier1",
+        "miniboss_tier": "miniboss1",
+        "img": "https://picsum.photos/seed/plains/400/300",
+        "desc": "Terras planas e verdejantes, ótimas para iniciantes",
+        "vilas": ["Vila Inicial", "Povoado Verde"],
+        "capital": "Castelo de Lumina"
+    },
+    "Floresta Sombria": {
+        "nivel_recomendado": 4,
+        "tier_monstros": "tier2",
+        "miniboss_tier": "miniboss2",
+        "img": "https://picsum.photos/seed/darkforest/400/300",
+        "desc": "Floresta densa com criaturas perigosas",
+        "vilas": ["Aldeia dos Caçadores"],
+        "capital": "Fortaleza da Madeira"
+    },
+    "Montanhas Gélidas": {
+        "nivel_recomendado": 8,
+        "tier_monstros": "tier3",
+        "miniboss_tier": "miniboss3",
+        "img": "https://picsum.photos/seed/icymountain/400/300",
+        "desc": "Picos nevados repletos de perigos mortais",
+        "vilas": ["Refúgio do Norte", "Acampamento Gélido"],
+        "capital": "Cidadela de Cristal"
+    },
+    "Deserto Ardente": {
+        "nivel_recomendado": 7,
+        "tier_monstros": "tier3",
+        "miniboss_tier": "miniboss3",
+        "img": "https://picsum.photos/seed/desert/400/300",
+        "desc": "Areias escaldantes com tesouros escondidos",
+        "vilas": ["Oásis Perdido"],
+        "capital": "Palácio das Dunas"
+    },
+    "Pântano Maldito": {
+        "nivel_recomendado": 5,
+        "tier_monstros": "tier2",
+        "miniboss_tier": "miniboss2",
+        "img": "https://picsum.photos/seed/swamp/400/300",
+        "desc": "Terras alagadas com criaturas venenosas",
+        "vilas": ["Cabana do Pântano", "Porto Sombrio"],
+        "capital": None
+    },
+    "Ruínas Antigas": {
+        "nivel_recomendado": 10,
+        "tier_monstros": "tier3",
+        "miniboss_tier": "miniboss3",
+        "img": "https://picsum.photos/seed/ruins/400/300",
+        "desc": "Estruturas antigas repletas de mistérios",
+        "vilas": ["Acampamento dos Exploradores"],
+        "capital": "Torre do Saber"
+    }
+}
+
+# ============================================
+# LOJAS - Cada localização tem itens diferentes
+# ============================================
+LOJA_ITENS = {
+    # LOJA DE VILAS (itens básicos e médios)
+    "vila": {
+        "Espada de Madeira": {"preco": 20, "nivel_req": 1},
+        "Espada de Ferro": {"preco": 100, "nivel_req": 3},
+        "Roupa de Pano": {"preco": 15, "nivel_req": 1},
+        "Armadura de Couro": {"preco": 80, "nivel_req": 3},
+        "Poção de Vida": {"preco": 30, "nivel_req": 1},
+        "Poção Grande": {"preco": 70, "nivel_req": 3},
+        "Poção de Força": {"preco": 50, "nivel_req": 4},
+        "Poção de Ferro": {"preco": 50, "nivel_req": 4},
+    },
+    
+    # LOJA DE CAPITAL (itens avançados)
+    "capital": {
+        "Espada de Ferro": {"preco": 100, "nivel_req": 3},
+        "Espada Flamejante": {"preco": 350, "nivel_req": 6},
+        "Lâmina Sombria": {"preco": 600, "nivel_req": 9},
+        "Armadura de Couro": {"preco": 80, "nivel_req": 3},
+        "Armadura de Placas": {"preco": 300, "nivel_req": 6},
+        "Armadura Dracônica": {"preco": 700, "nivel_req": 9},
+        "Poção Grande": {"preco": 70, "nivel_req": 3},
+        "Elixir Supremo": {"preco": 150, "nivel_req": 6},
+        "Poção de Força": {"preco": 50, "nivel_req": 4},
+        "Poção de Ferro": {"preco": 50, "nivel_req": 4},
+        "Poção de Fúria": {"preco": 80, "nivel_req": 6},
+    },
+    
+    # CONTRABANDISTA (itens raros com desconto, mas preço em gold alto)
+    "contrabandista": {
+        "Espada Flamejante": {"preco": 280, "nivel_req": 5},  # Mais barato mas ainda caro
+        "Lâmina Sombria": {"preco": 500, "nivel_req": 8},
+        "Armadura de Placas": {"preco": 250, "nivel_req": 5},
+        "Armadura Dracônica": {"preco": 600, "nivel_req": 8},
+        "Elixir Supremo": {"preco": 120, "nivel_req": 5},
+        "Poção de Fúria": {"preco": 65, "nivel_req": 5},
+        "Poção de Berserker": {"preco": 85, "nivel_req": 7},
+    }
+}
+
+# ============================================
 # BANCO DE DADOS
 # ============================================
 def criar_banco():
@@ -491,7 +594,8 @@ def criar_banco():
         defesa INTEGER NOT NULL,
         gold INTEGER DEFAULT 0,
         vitorias INTEGER DEFAULT 0,
-        derrotas INTEGER DEFAULT 0
+        derrotas INTEGER DEFAULT 0,
+        mapa_atual TEXT DEFAULT 'Planície de Aether'
     )''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS inventario (
@@ -546,12 +650,13 @@ def salvar_player(uid, dados):
     
     c.execute('''INSERT OR REPLACE INTO players 
                  (user_id, classe, level, xp, hp_atual, hp_max, energia_atual, 
-                  energia_max, ataque, defesa, gold, vitorias, derrotas)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                  energia_max, ataque, defesa, gold, vitorias, derrotas, mapa_atual)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
               (uid, dados['classe'], dados['level'], dados['xp'], 
                dados['hp_atual'], dados['hp_max'], dados['energia_atual'],
                dados['energia_max'], dados['ataque'], dados['defesa'],
-               dados['gold'], dados['vitorias'], dados['derrotas']))
+               dados['gold'], dados['vitorias'], dados['derrotas'],
+               dados.get('mapa_atual', 'Planície de Aether')))
     
     conn.commit()
     conn.close()
@@ -578,7 +683,8 @@ def carregar_player(uid):
             'defesa': row[9],
             'gold': row[10],
             'vitorias': row[11],
-            'derrotas': row[12]
+            'derrotas': row[12],
+            'mapa_atual': row[13] if len(row) > 13 else 'Planície de Aether'
         }
     return None
 
@@ -661,26 +767,16 @@ def deletar_combate(uid):
     conn.commit()
     conn.close()
 
-def escolher_monstro(player_level):
-    """Escolhe monstro apropriado (com chance de miniboss)"""
+def escolher_monstro(player_level, mapa_nome):
+    """Escolhe monstro apropriado baseado no mapa (com chance de miniboss)"""
+    mapa_info = MAPAS.get(mapa_nome, MAPAS["Planície de Aether"])
+    
     # 10% de chance de miniboss
     if random.random() < 0.10:
-        if player_level <= 3:
-            monstro = random.choice(MONSTROS["miniboss1"]).copy()
-        elif player_level <= 7:
-            monstro = random.choice(MONSTROS["miniboss2"]).copy()
-        else:
-            monstro = random.choice(MONSTROS["miniboss3"]).copy()
+        monstro = random.choice(MONSTROS[mapa_info["miniboss_tier"]]).copy()
     else:
-        # Monstro normal
-        if player_level <= 3:
-            tier = "tier1"
-        elif player_level <= 7:
-            tier = "tier2"
-        else:
-            tier = "tier3"
-        
-        monstro = random.choice(MONSTROS[tier]).copy()
+        # Monstro normal do mapa
+        monstro = random.choice(MONSTROS[mapa_info["tier_monstros"]]).copy()
     
     # Escalar monstro com level do player
     nivel_multiplicador = 1 + (player_level - 1) * 0.1
@@ -740,6 +836,7 @@ def menu_principal(uid):
     """Gera menu principal do jogo"""
     p = carregar_player(uid)
     classe_info = CLASSES[p['classe']]
+    mapa_info = MAPAS[p['mapa_atual']]
     
     bonus_atk, bonus_def = calcular_bonus_equipamentos(uid)
     atk_total = p['ataque'] + bonus_atk
@@ -749,8 +846,10 @@ def menu_principal(uid):
     barra_en = criar_barra(p['energia_atual'], p['energia_max'], "energia")
     barra_xp = criar_barra(p['xp'], xp_para_proximo_level(p['level']), "xp")
     
-    texto = f"""🏰 **Planície** (Lv {p['level']})
-👤 Classe: {p['classe']}
+    texto = f"""🗺️ **{p['mapa_atual']}** (Lv {mapa_info['nivel_recomendado']}+)
+_{mapa_info['desc']}_
+
+👤 {p['classe']} - Level {p['level']}
 ❤️ HP: {p['hp_atual']}/{p['hp_max']} {barra_hp}
 ⚡ Energia: {p['energia_atual']}/{p['energia_max']} {barra_en}
 ✨ XP: {p['xp']}/{xp_para_proximo_level(p['level'])} {barra_xp}
@@ -765,12 +864,14 @@ def menu_principal(uid):
     botoes = [
         [InlineKeyboardButton("⚔️ Caçar", callback_data='cacar'),
          InlineKeyboardButton("😴 Descansar", callback_data='descansar')],
+        [InlineKeyboardButton("🏘️ Ir para Vila/Capital", callback_data='menu_vilas'),
+         InlineKeyboardButton("🗺️ Viajar", callback_data='menu_mapas')],
         [InlineKeyboardButton("🎒 Inventário", callback_data='inventario'),
          InlineKeyboardButton("👤 Perfil", callback_data='perfil')],
         [InlineKeyboardButton("⚙️ Menu", callback_data='menu_config')]
     ]
     
-    return texto, InlineKeyboardMarkup(botoes), classe_info['img']
+    return texto, InlineKeyboardMarkup(botoes), mapa_info['img']
 
 def menu_combate(uid):
     """Menu de combate em turno"""
@@ -996,6 +1097,139 @@ Tem certeza que deseja continuar?"""
     
     return texto, InlineKeyboardMarkup(botoes)
 
+def menu_mapas(uid):
+    """Menu de seleção de mapas"""
+    p = carregar_player(uid)
+    
+    texto = f"""🗺️ **VIAJAR PARA OUTRO MAPA**
+
+📍 Local atual: **{p['mapa_atual']}**
+⭐ Seu level: {p['level']}
+
+Escolha seu destino:
+"""
+    
+    botoes = []
+    for nome_mapa, info in MAPAS.items():
+        emoji = "✅" if nome_mapa == p['mapa_atual'] else "🗺️"
+        nivel_texto = f"(Lv {info['nivel_recomendado']}+)"
+        
+        # Verificar se pode viajar
+        if p['level'] < info['nivel_recomendado'] - 2:
+            emoji = "🔒"
+        
+        botoes.append([InlineKeyboardButton(
+            f"{emoji} {nome_mapa} {nivel_texto}",
+            callback_data=f"viajar_{nome_mapa}"
+        )])
+    
+    botoes.append([InlineKeyboardButton("◀️ Voltar", callback_data='voltar')])
+    
+    return texto, InlineKeyboardMarkup(botoes)
+
+def menu_vilas(uid):
+    """Menu de vilas do mapa atual"""
+    p = carregar_player(uid)
+    mapa_info = MAPAS[p['mapa_atual']]
+    
+    texto = f"""🏘️ **VILAS E CIDADES**
+📍 Mapa: {p['mapa_atual']}
+
+Onde deseja ir?
+"""
+    
+    botoes = []
+    
+    # Adicionar vilas
+    for vila in mapa_info['vilas']:
+        botoes.append([InlineKeyboardButton(
+            f"🏘️ {vila}",
+            callback_data=f"vila_{vila}"
+        )])
+    
+    # Adicionar capital se existir
+    if mapa_info['capital']:
+        botoes.append([InlineKeyboardButton(
+            f"🏰 {mapa_info['capital']}",
+            callback_data=f"capital_{mapa_info['capital']}"
+        )])
+    
+    # Adicionar contrabandista (sempre disponível)
+    botoes.append([InlineKeyboardButton(
+        "🎭 Procurar Contrabandista",
+        callback_data="contrabandista"
+    )])
+    
+    botoes.append([InlineKeyboardButton("◀️ Voltar", callback_data='voltar')])
+    
+    return texto, InlineKeyboardMarkup(botoes)
+
+def menu_loja(uid, tipo_loja, nome_local):
+    """Menu de loja (vila, capital ou contrabandista)"""
+    p = carregar_player(uid)
+    
+    if tipo_loja == "contrabandista":
+        texto = f"""🎭 **CONTRABANDISTA**
+_"Tenho itens... especiais. Não pergunte de onde vieram."_
+
+💰 Seu Gold: {p['gold']}
+⭐ Level: {p['level']}
+
+**Itens Disponíveis:**
+"""
+    elif tipo_loja == "capital":
+        texto = f"""🏰 **{nome_local}**
+_Loja da Capital - Itens de Alta Qualidade_
+
+💰 Seu Gold: {p['gold']}
+⭐ Level: {p['level']}
+
+**Itens Disponíveis:**
+"""
+    else:  # vila
+        texto = f"""🏘️ **{nome_local}**
+_Loja da Vila - Itens Essenciais_
+
+💰 Seu Gold: {p['gold']}
+⭐ Level: {p['level']}
+
+**Itens Disponíveis:**
+"""
+    
+    itens_loja = LOJA_ITENS[tipo_loja if tipo_loja == "contrabandista" else tipo_loja]
+    
+    for item_nome, config in itens_loja.items():
+        item_info = ITENS[item_nome]
+        raridade_emoji = {"comum": "⚪", "rara": "🔵", "épica": "🟣"}.get(item_info.get('raridade', 'comum'), "⚪")
+        
+        preco = config['preco']
+        nivel_req = config['nivel_req']
+        
+        pode_comprar = "✅" if p['gold'] >= preco and p['level'] >= nivel_req else "❌"
+        
+        texto += f"\n{raridade_emoji} **{item_nome}**"
+        texto += f"\n  💰 {preco} gold | Lv {nivel_req}+"
+        
+        if item_info['tipo'] == 'arma':
+            texto += f" | ⚔️ +{item_info['ataque']} ATK"
+        elif item_info['tipo'] == 'armadura':
+            texto += f" | 🛡️ +{item_info['defesa']} DEF"
+        
+        texto += f"\n  {pode_comprar} _{ item_info['desc']}_\n"
+    
+    # Botões de compra
+    botoes = []
+    for item_nome, config in itens_loja.items():
+        if p['gold'] >= config['preco'] and p['level'] >= config['nivel_req']:
+            botoes.append([InlineKeyboardButton(
+                f"💰 Comprar {item_nome} ({config['preco']} gold)",
+                callback_data=f"comprar_{tipo_loja}_{item_nome}"
+            )])
+    
+    botoes.append([InlineKeyboardButton("◀️ Voltar", callback_data='menu_vilas')])
+    
+    return texto, InlineKeyboardMarkup(botoes)
+
 # ============================================
 # HANDLERS DO BOT
 # ============================================
@@ -1057,9 +1291,10 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'energia_max': classe['energia_base'],
             'ataque': classe['ataque_base'],
             'defesa': classe['defesa_base'],
-            'gold': 0,
+            'gold': 50,  # Gold inicial
             'vitorias': 0,
-            'derrotas': 0
+            'derrotas': 0,
+            'mapa_atual': 'Planície de Aether'  # Mapa inicial
         }
         
         salvar_player(uid, novo_player)
@@ -1071,9 +1306,9 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         txt, kb, img = menu_principal(uid)
         
-        await q.edit_message_media(media=InputMediaPhoto(classe['img']))
+        await q.edit_message_media(media=InputMediaPhoto(img))
         await q.edit_message_caption(
-            caption=f"✅ Você é agora um **{classe_nome}**!\n\n🎁 Itens iniciais recebidos!\n\n{txt}",
+            caption=f"✅ Você é agora um **{classe_nome}**!\n\n🎁 Itens iniciais recebidos!\n💰 Você começa com 50 gold!\n\n{txt}",
             reply_markup=kb,
             parse_mode='Markdown'
         )
@@ -1090,8 +1325,8 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         player['energia_atual'] -= 2
         salvar_player(uid, player)
         
-        # Escolher monstro
-        monstro = escolher_monstro(player['level'])
+        # Escolher monstro baseado no mapa atual
+        monstro = escolher_monstro(player['level'], player['mapa_atual'])
         
         # Criar combate
         dados_combate = {
@@ -1634,6 +1869,111 @@ Gasta 2 energia. Enfrente monstros em combate por turnos!
         
         botoes = [[InlineKeyboardButton("◀️ Voltar", callback_data='menu_config')]]
         await q.edit_message_caption(caption=stats, reply_markup=InlineKeyboardMarkup(botoes), parse_mode='Markdown')
+    
+    # ===== MENU MAPAS =====
+    elif q.data == 'menu_mapas':
+        txt, kb = menu_mapas(uid)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+    
+    # ===== VIAJAR PARA MAPA =====
+    elif q.data.startswith('viajar_'):
+        nome_mapa = q.data.replace('viajar_', '')
+        player = carregar_player(uid)
+        mapa_info = MAPAS.get(nome_mapa)
+        
+        if not mapa_info:
+            await q.answer("❌ Mapa não encontrado!", show_alert=True)
+            return
+        
+        # Verificar level
+        if player['level'] < mapa_info['nivel_recomendado'] - 2:
+            await q.answer(
+                f"🔒 Você precisa ser level {mapa_info['nivel_recomendado'] - 2}+ para viajar para este mapa!",
+                show_alert=True
+            )
+            return
+        
+        # Já está neste mapa?
+        if player['mapa_atual'] == nome_mapa:
+            await q.answer("📍 Você já está neste mapa!", show_alert=True)
+            return
+        
+        # Viajar
+        player['mapa_atual'] = nome_mapa
+        salvar_player(uid, player)
+        
+        txt, kb, img = menu_principal(uid)
+        await q.edit_message_media(media=InputMediaPhoto(img))
+        await q.edit_message_caption(
+            caption=f"🗺️ **Você viajou para {nome_mapa}!**\n\n{txt}",
+            reply_markup=kb,
+            parse_mode='Markdown'
+        )
+    
+    # ===== MENU VILAS =====
+    elif q.data == 'menu_vilas':
+        txt, kb = menu_vilas(uid)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+    
+    # ===== ENTRAR EM VILA =====
+    elif q.data.startswith('vila_'):
+        nome_vila = q.data.replace('vila_', '')
+        txt, kb = menu_loja(uid, 'vila', nome_vila)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+    
+    # ===== ENTRAR EM CAPITAL =====
+    elif q.data.startswith('capital_'):
+        nome_capital = q.data.replace('capital_', '')
+        txt, kb = menu_loja(uid, 'capital', nome_capital)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+    
+    # ===== CONTRABANDISTA =====
+    elif q.data == 'contrabandista':
+        txt, kb = menu_loja(uid, 'contrabandista', 'Contrabandista')
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
+    
+    # ===== COMPRAR ITEM =====
+    elif q.data.startswith('comprar_'):
+        partes = q.data.replace('comprar_', '').split('_', 1)
+        tipo_loja = partes[0]
+        item_nome = partes[1]
+        
+        player = carregar_player(uid)
+        
+        # Verificar se item existe na loja
+        if tipo_loja == "contrabandista":
+            loja = LOJA_ITENS["contrabandista"]
+        else:
+            loja = LOJA_ITENS[tipo_loja]
+        
+        if item_nome not in loja:
+            await q.answer("❌ Item não disponível!", show_alert=True)
+            return
+        
+        config = loja[item_nome]
+        preco = config['preco']
+        nivel_req = config['nivel_req']
+        
+        # Verificar requisitos
+        if player['level'] < nivel_req:
+            await q.answer(f"❌ Você precisa ser level {nivel_req}+!", show_alert=True)
+            return
+        
+        if player['gold'] < preco:
+            await q.answer(f"❌ Gold insuficiente! Faltam {preco - player['gold']} gold.", show_alert=True)
+            return
+        
+        # Comprar
+        player['gold'] -= preco
+        salvar_player(uid, player)
+        adicionar_item(uid, item_nome, 1)
+        
+        await q.answer(f"✅ Você comprou {item_nome}!", show_alert=True)
+        
+        # Atualizar menu da loja
+        nome_local = "Contrabandista" if tipo_loja == "contrabandista" else "Loja"
+        txt, kb = menu_loja(uid, tipo_loja, nome_local)
+        await q.edit_message_caption(caption=txt, reply_markup=kb, parse_mode='Markdown')
     
     # ===== VOLTAR =====
     elif q.data == 'voltar':
