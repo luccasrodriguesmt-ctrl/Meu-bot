@@ -1,16 +1,3 @@
-"""
-🎮 BOT RPG TELEGRAM - VERSÃO COMPLETA COM COMBATE EM TURNOS
-Por: Seu Nome
-
-NOVAS MELHORIAS:
-✅ Sistema de combate em TURNOS com botões
-✅ Variedade de monstros + Mini Bosses
-✅ Ação de DEFENDER (reduz dano)
-✅ Poções com BUFFS temporários
-✅ Combate estratégico e interativo
-✅ Sistema de raridade de drops
-"""
-
 import random
 import sqlite3
 import time
