@@ -1360,70 +1360,18 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa mensagens de texto (para nome do personagem)"""
+    """Processa mensagens de texto (para mudar nome e cheat code)"""
     uid = update.effective_user.id
     texto = update.message.text.strip()
-    
-    # Verificar se está criando personagem
-    if 'classe_escolhida' in context.user_data:
-        classe_nome = context.user_data['classe_escolhida']
-        classe = CLASSES[classe_nome]
-        
-        # Validar nome
-        if len(texto) < 3 or len(texto) > 20:
-            await update.message.reply_text(
-                "❌ Nome inválido! Use entre 3 e 20 caracteres.\n\nTente novamente:"
-            )
-            return
-        
-        # Criar personagem
-        novo_player = {
-            'nome': texto,
-            'classe': classe_nome,
-            'level': 1,
-            'xp': 0,
-            'hp_atual': classe['hp_base'],
-            'hp_max': classe['hp_base'],
-            'energia_atual': classe['energia_base'],
-            'energia_max': classe['energia_base'],
-            'ataque': classe['ataque_base'],
-            'defesa': classe['defesa_base'],
-            'gold': 50,
-            'vitorias': 0,
-            'derrotas': 0,
-            'mapa_atual': 'Planície de Aether',
-            'ultima_energia_update': int(time.time())
-        }
-        
-        salvar_player(uid, novo_player)
-        
-        # Dar itens iniciais
-        adicionar_item(uid, "Espada de Madeira", 1)
-        adicionar_item(uid, "Roupa de Pano", 1)
-        adicionar_item(uid, "Poção de Vida", 3)
-        
-        del context.user_data['classe_escolhida']
-        
-        txt, kb, img = menu_principal(uid)
-        
-        await update.message.reply_photo(
-            photo=img,
-            caption=f"""✅ **Bem-vindo, {texto}!**
-
-Você é agora um **{classe_nome}**!
-
-🎁 Itens iniciais recebidos!
-💰 Você começa com 50 gold!
-
-{txt}""",
-            reply_markup=kb,
-            parse_mode='Markdown'
-        )
-        return
     
     # Verificar se está mudando nome
     if context.user_data.get('mudando_nome'):
         player = carregar_player(uid)
+        
+        if not player:
+            await update.message.reply_text("❌ Erro! Use /start para começar.")
+            context.user_data['mudando_nome'] = False
+            return
         
         if len(texto) < 3 or len(texto) > 20:
             await update.message.reply_text(
@@ -1476,16 +1424,52 @@ async def processar_botoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ===== CRIAR PERSONAGEM =====
     if q.data.startswith('criar_'):
         classe_nome = q.data.replace('criar_', '')
-        # Salvar classe temporariamente e pedir nome
-        context.user_data['classe_escolhida'] = classe_nome
+        classe = CLASSES[classe_nome]
         
+        # ✅ Gerar nome padrão baseado no ID do usuário
+        nome_padrao = f"Herói{uid % 10000}"
+        
+        # ✅ Criar personagem IMEDIATAMENTE (sem pedir nome)
+        novo_player = {
+            'nome': nome_padrao,
+            'classe': classe_nome,
+            'level': 1,
+            'xp': 0,
+            'hp_atual': classe['hp_base'],
+            'hp_max': classe['hp_base'],
+            'energia_atual': classe['energia_base'],
+            'energia_max': classe['energia_base'],
+            'ataque': classe['ataque_base'],
+            'defesa': classe['defesa_base'],
+            'gold': 50,
+            'vitorias': 0,
+            'derrotas': 0,
+            'mapa_atual': 'Planície de Aether',
+            'ultima_energia_update': int(time.time())
+        }
+        
+        salvar_player(uid, novo_player)
+        
+        # Dar itens iniciais
+        adicionar_item(uid, "Espada de Madeira", 1)
+        adicionar_item(uid, "Roupa de Pano", 1)
+        adicionar_item(uid, "Poção de Vida", 3)
+        
+        txt, kb, img = menu_principal(uid)
+        
+        await q.edit_message_media(media=InputMediaPhoto(img))
         await q.edit_message_caption(
-            caption=f"""✨ **Você escolheu: {classe_nome}!**
+            caption=f"""✅ **Bem-vindo, {nome_padrao}!**
 
-Agora, me diga:
-**Qual será o nome do seu personagem?**
+Você é agora um **{classe_nome}**!
 
-Digite o nome e envie como mensagem.""",
+🎁 Itens iniciais recebidos!
+💰 Você começa com 50 gold!
+
+💡 **Dica:** Vá em Perfil → Mudar Nome para personalizar!
+
+{txt}""",
+            reply_markup=kb,
             parse_mode='Markdown'
         )
         return
