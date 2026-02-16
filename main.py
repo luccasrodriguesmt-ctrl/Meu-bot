@@ -3,151 +3,130 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
-VERSAO = "2.0.2 - Sistema Completo + Render Fix"
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+VERSAO = "2.1.0 - Sistema Completo"
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# ============================================
-# 🌐 SERVIDOR HTTP FAKE PARA O RENDER
-# ============================================
 def run_fake_server():
-    """Servidor fake para o Render não matar o bot"""
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
-            self.wfile.write(b"Bot esta vivo e funcionando!")
-        
-        def log_message(self, format, *args):
-            pass  # Silencia logs do servidor
-    
+            self.wfile.write(b"Bot Online!")
+        def log_message(self, format, *args): pass
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(('0.0.0.0', port), Handler)
-    logging.info(f"Servidor HTTP rodando na porta {port}")
+    logging.info(f"HTTP Server on port {port}")
     server.serve_forever()
 
-# Inicia o servidor em background
 threading.Thread(target=run_fake_server, daemon=True).start()
-DB_FILE = "rpg_game.db"
 
-# IMAGENS
+DB_FILE = "rpg_game.db"
+IMG = "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_n68a2ln68a2ln68a.png?raw=true"
+
 IMAGENS = {
     "logo": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/WhatsApp%20Image%202026-02-15%20at%2009.06.10.jpeg?raw=true",
-    "selecao_classes": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_l46bisl46bisl46b.png?raw=true",
+    "sel": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_l46bisl46bisl46b.png?raw=true",
     "classes": {
         "Guerreiro": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_n68a2ln68a2ln68a.png?raw=true",
         "Arqueiro": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_o1dtmio1dtmio1dt.png?raw=true",
         "Bruxa": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_fyofu7fyofu7fyof.png?raw=true",
         "Mago": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_8nad348nad348nad.png?raw=true"
-    },
-    "mapas": {i: f"https://via.placeholder.com/800x600?text=Mapa+{i}" for i in range(1, 7)},
-    "inimigos": {nome: f"https://via.placeholder.com/400x400?text={nome}" for nome in ["Goblin", "Lobo", "Orc", "Esqueleto", "Dragão"]}
+    }
 }
 
-# DADOS DO JOGO
 MAPAS = {
-    1: {"nome": "Planície Verdejante", "nivel_min": 1, "xp": 20, "gold": 15},
-    2: {"nome": "Floresta Sombria", "nivel_min": 5, "xp": 50, "gold": 35},
-    3: {"nome": "Caverna Profunda", "nivel_min": 10, "xp": 100, "gold": 70},
-    4: {"nome": "Montanha Gelada", "nivel_min": 15, "xp": 200, "gold": 150},
-    5: {"nome": "Vulcão Ardente", "nivel_min": 20, "xp": 350, "gold": 250},
-    6: {"nome": "Torre Arcana", "nivel_min": 25, "xp": 500, "gold": 400}
+    1: {"nome": "Planície", "lv": 1, "loc": {
+        "cap": {"nome": "Capital Real", "loja": "normal"},
+        "v1": {"nome": "Vila Norte", "loja": "normal"},
+        "v2": {"nome": "Povoado Sul", "loja": "contra"}
+    }},
+    2: {"nome": "Floresta", "lv": 5, "loc": {
+        "cap": {"nome": "Forte Floresta", "loja": "normal"},
+        "v1": {"nome": "Acampamento", "loja": "normal"},
+        "v2": {"nome": "Refúgio", "loja": "contra"}
+    }},
+    3: {"nome": "Caverna", "lv": 10, "loc": {
+        "cap": {"nome": "Cidade Sub", "loja": "normal"},
+        "v1": {"nome": "Mina", "loja": "contra"},
+        "v2": {"nome": "Forte Anão", "loja": "normal"}
+    }}
 }
 
 INIMIGOS = {
-    "Goblin": {"hp": 30, "atk": 8, "xp": 25, "gold": 15, "mapas": [1, 2]},
-    "Lobo": {"hp": 45, "atk": 12, "xp": 40, "gold": 25, "mapas": [2, 3]},
-    "Orc": {"hp": 80, "atk": 20, "xp": 80, "gold": 60, "mapas": [3, 4]},
-    "Esqueleto": {"hp": 60, "atk": 15, "xp": 70, "gold": 50, "mapas": [3, 4, 5]},
-    "Dragão": {"hp": 200, "atk": 40, "xp": 300, "gold": 250, "mapas": [5, 6]}
+    "Goblin": {"hp": 30, "atk": 8, "def": 2, "xp": 25, "gold": 15, "desc": "Criatura verde maliciosa", "m": [1]},
+    "Lobo": {"hp": 45, "atk": 12, "def": 4, "xp": 40, "gold": 25, "desc": "Predador feroz", "m": [1,2]},
+    "Orc": {"hp": 80, "atk": 20, "def": 8, "xp": 80, "gold": 60, "desc": "Guerreiro brutal", "m": [2,3]},
+    "Esqueleto": {"hp": 60, "atk": 15, "def": 5, "xp": 70, "gold": 50, "desc": "Morto-vivo", "m": [2,3]},
+    "Dragão": {"hp": 200, "atk": 40, "def": 15, "xp": 300, "gold": 250, "desc": "Besta lendária", "m": [3]}
 }
 
-EQUIPAMENTOS = {
-    "Espada Enferrujada": {"tipo": "arma", "atk": 5, "preco": 50, "lv": 1},
-    "Espada de Ferro": {"tipo": "arma", "atk": 15, "preco": 200, "lv": 5},
-    "Espada de Aço": {"tipo": "arma", "atk": 30, "preco": 500, "lv": 10},
-    "Espada Lendária": {"tipo": "arma", "atk": 60, "preco": 2000, "lv": 20},
-    "Armadura de Couro": {"tipo": "armadura", "def": 5, "preco": 50, "lv": 1},
-    "Armadura de Ferro": {"tipo": "armadura", "def": 15, "preco": 200, "lv": 5},
-    "Armadura de Aço": {"tipo": "armadura", "def": 30, "preco": 500, "lv": 10},
-    "Armadura Lendária": {"tipo": "armadura", "def": 60, "preco": 2000, "lv": 20}
+EQUIPS = {
+    "Espada Enf": {"t": "arma", "atk": 5, "p": 50, "lv": 1},
+    "Espada Ferro": {"t": "arma", "atk": 15, "p": 200, "lv": 5},
+    "Espada Aço": {"t": "arma", "atk": 30, "p": 500, "lv": 10},
+    "Arm Couro": {"t": "arm", "def": 5, "p": 50, "lv": 1},
+    "Arm Ferro": {"t": "arm", "def": 15, "p": 200, "lv": 5},
+    "Arm Aço": {"t": "arm", "def": 30, "p": 500, "lv": 10}
 }
 
 DUNGEONS = [
-    {"nome": "Covil dos Goblins", "lv": 5, "boss": "Goblin Rei", "xp": 200, "gold": 150},
-    {"nome": "Ninho de Lobos", "lv": 10, "boss": "Lobo Alpha", "xp": 400, "gold": 300},
-    {"nome": "Fortaleza Orc", "lv": 15, "boss": "Orc Senhor", "xp": 800, "gold": 600},
-    {"nome": "Tumba Amaldiçoada", "lv": 20, "boss": "Lich", "xp": 1500, "gold": 1000},
-    {"nome": "Covil do Dragão", "lv": 25, "boss": "Dragão Ancião", "xp": 3000, "gold": 2500}
+    {"nome": "Covil Goblin", "lv": 5, "boss": "Rei Goblin", "bhp": 100, "batk": 20, "xp": 200, "g": 150},
+    {"nome": "Ninho Lobos", "lv": 10, "boss": "Lobo Alpha", "bhp": 150, "batk": 30, "xp": 400, "g": 300}
 ]
 
-TELA_CLASSE, TELA_NOME = range(2)
+ST_CL, ST_NM = range(2)
 
-# DATABASE
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS players 
                  (id INTEGER PRIMARY KEY, nome TEXT, classe TEXT, hp INTEGER, hp_max INTEGER, 
                   lv INTEGER, exp INTEGER, gold INTEGER, energia INTEGER, energia_max INTEGER,
-                  mapa_atual INTEGER DEFAULT 1, arma TEXT, armadura TEXT, atk_bonus INTEGER DEFAULT 0, def_bonus INTEGER DEFAULT 0)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS inventario (player_id INTEGER, item TEXT, qtd INTEGER DEFAULT 1, PRIMARY KEY (player_id, item))''')
-    c.execute('''CREATE TABLE IF NOT EXISTS dungeons_completas (player_id INTEGER, dungeon_id INTEGER, PRIMARY KEY (player_id, dungeon_id))''')
+                  mapa INTEGER DEFAULT 1, local TEXT DEFAULT 'cap',
+                  arma TEXT, arm TEXT, atk_b INTEGER DEFAULT 0, def_b INTEGER DEFAULT 0)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS inv (pid INTEGER, item TEXT, qtd INTEGER DEFAULT 1, PRIMARY KEY (pid, item))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS dung (pid INTEGER, did INTEGER, PRIMARY KEY (pid, did))''')
     conn.commit()
     conn.close()
 
-def get_player(uid):
+def get_p(uid):
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     p = conn.execute("SELECT * FROM players WHERE id = ?", (uid,)).fetchone()
     conn.close()
     return p
 
-def delete_player(uid):
+def del_p(uid):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    for table in ["players", "inventario", "dungeons_completas"]:
-        c.execute(f"DELETE FROM {table} WHERE {'id' if table=='players' else 'player_id'} = ?", (uid,))
+    for t in ["players", "inv", "dung"]:
+        c.execute(f"DELETE FROM {t} WHERE {'id' if t=='players' else 'pid'} = ?", (uid,))
     conn.commit()
     conn.close()
 
-def get_inventario(uid):
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    items = conn.execute("SELECT * FROM inventario WHERE player_id = ?", (uid,)).fetchall()
-    conn.close()
-    return items
+def barra(a, m, c="🟦"):
+    if m <= 0: return "⬜"*10
+    p = max(0, min(a/m, 1))
+    return c*int(p*10) + "⬜"*(10-int(p*10))
 
-def adicionar_item(uid, item, qtd=1):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("INSERT INTO inventario (player_id, item, qtd) VALUES (?, ?, ?) ON CONFLICT(player_id, item) DO UPDATE SET qtd = qtd + ?", (uid, item, qtd, qtd))
-    conn.commit()
-    conn.close()
+def img_c(c):
+    return IMAGENS["classes"].get(c, IMG)
 
-# UTILS
-def barra(atual, total, cor="🟦"):
-    if total <= 0: return "⬜"*10
-    p = max(0, min(atual/total, 1))
-    return cor*int(p*10) + "⬜"*(10-int(p*10))
+def atk(p):
+    return 10 + (p['lv']*2) + p['atk_b']
 
-def img_classe(c):
-    return IMAGENS["classes"].get(c, IMAGENS["logo"])
+def deff(p):
+    return 5 + p['lv'] + p['def_b']
 
-def atk_total(p):
-    return 10 + (p['lv']*2) + p['atk_bonus']
-
-def def_total(p):
-    return 5 + p['lv'] + p['def_bonus']
-
-# MENU PRINCIPAL
 async def menu(upd, ctx, uid, txt=""):
-    p = get_player(uid)
+    p = get_p(uid)
     if not p: return
-    mapa = MAPAS.get(p['mapa_atual'], {}).get('nome', '?')
-    cap = f"🎮 **{VERSAO}**\n{'━'*20}\n👤 **{p['nome']}** — *{p['classe']} Lv. {p['lv']}*\n🗺️ **Local:** {mapa}\n\n❤️ **HP:** {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n\n✨ **XP:** {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100,'🟦')}\n\n⚔️ **ATK:** {atk_total(p)} | 🛡️ **DEF:** {def_total(p)}\n💰 **Gold:** `{p['gold']}` | ⚡ **Energy:** `{p['energia']}/{p['energia_max']}`\n{'━'*20}\n{txt}"
-    kb = [[InlineKeyboardButton("⚔️ Caçar",callback_data="cacar"),InlineKeyboardButton("🗺️ Mapas",callback_data="mapas")],[InlineKeyboardButton("🎒 Mochila",callback_data="inventario"),InlineKeyboardButton("👤 Status",callback_data="perfil")],[InlineKeyboardButton("🏪 Loja",callback_data="loja"),InlineKeyboardButton("🏰 Dungeons",callback_data="dungeons")],[InlineKeyboardButton("⚙️ Config",callback_data="config")]]
-    img = img_classe(p['classe'])
+    mi = MAPAS.get(p['mapa'], {})
+    li = mi.get('loc', {}).get(p['local'], {})
+    cap = f"🎮 **{VERSAO}**\n{'━'*20}\n👤 **{p['nome']}** — *{p['classe']} Lv. {p['lv']}*\n🗺️ {mi.get('nome','?')} | 📍 {li.get('nome','?')}\n\n❤️ HP: {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n✨ XP: {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100,'🟦')}\n\n⚔️ ATK: {atk(p)} | 🛡️ DEF: {deff(p)}\n💰 {p['gold']} | ⚡ {p['energia']}/{p['energia_max']}\n{'━'*20}\n{txt}"
+    kb = [[InlineKeyboardButton("⚔️ Caçar",callback_data="cacar"),InlineKeyboardButton("🗺️ Mapas",callback_data="mapas")],[InlineKeyboardButton("🏘️ Locais",callback_data="locais"),InlineKeyboardButton("👤 Status",callback_data="perfil")],[InlineKeyboardButton("🏪 Loja",callback_data="loja"),InlineKeyboardButton("🏰 Dungeons",callback_data="dungs")],[InlineKeyboardButton("⚙️ Config",callback_data="cfg")]]
+    img = img_c(p['classe'])
     if upd.callback_query:
         try:
             await upd.callback_query.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
@@ -158,73 +137,87 @@ async def menu(upd, ctx, uid, txt=""):
     else:
         await upd.message.reply_photo(img, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
-# CONFIG MENU
-async def config(upd, ctx):
-    q = upd.callback_query
-    await q.answer()
-    cap = f"⚙️ **CONFIGURAÇÕES**\n{'━'*20}\n🔄 **Reset** - Recomeçar\n⚡ **Level MAX** - Level 99\n💰 **Gold MAX** - 999,999 gold\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🔄 Reset",callback_data="reset_conf")],[InlineKeyboardButton("⚡ Level MAX",callback_data="cheat_lv")],[InlineKeyboardButton("💰 Gold MAX",callback_data="cheat_gold")],[InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")]]
-    try:
-        await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-    except:
-        await q.edit_message_text(cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-
-async def reset_conf(upd, ctx):
-    q = upd.callback_query
-    await q.answer()
-    cap = f"⚠️ **ATENÇÃO!**\n{'━'*20}\n**DELETAR** personagem?\n❌ **IRREVERSÍVEL**!\nPerderá tudo!\n{'━'*20}"
-    kb = [[InlineKeyboardButton("✅ SIM",callback_data="reset_yes")],[InlineKeyboardButton("❌ NÃO",callback_data="config")]]
-    try:
-        await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-    except:
-        await q.edit_message_text(cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-
-async def reset_yes(upd, ctx):
+async def cacar(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    delete_player(uid)
-    await q.answer("✅ Deletado!", show_alert=True)
-    cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nPersonagem deletado.\nCrie um novo!\nVersão: `{VERSAO}`\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🎮 Criar Novo",callback_data="ir_para_classes")]]
+    p = get_p(uid)
+    if not p:
+        await q.answer("Crie personagem!", show_alert=True)
+        return
+    if p['energia'] < 2:
+        await q.answer("🪫 Sem energia!", show_alert=True)
+        return
+    
+    inims = [n for n, d in INIMIGOS.items() if p['mapa'] in d['m']]
+    if not inims:
+        await q.answer("Sem inimigos!", show_alert=True)
+        return
+    
+    inm = random.choice(inims)
+    ini = INIMIGOS[inm]
+    
+    p_atk = atk(p)
+    p_def = deff(p)
+    i_hp = ini['hp']
+    i_atk = ini['atk']
+    i_def = ini['def']
+    p_hp = p['hp']
+    
+    log = []
+    t = 1
+    
+    while p_hp > 0 and i_hp > 0 and t <= 10:
+        dp = max(1, p_atk - i_def + random.randint(-2,2))
+        i_hp -= dp
+        log.append(f"↗️ T{t}: Ataque! -{dp}")
+        if i_hp <= 0: break
+        di = max(1, i_atk - p_def + random.randint(-2,2))
+        p_hp -= di
+        log.append(f"↘️ T{t}: {inm}! -{di}")
+        t += 1
+    
+    vit = p_hp > 0
+    p_hp = max(1, p_hp)
+    
+    if vit:
+        g = ini['gold'] + random.randint(-5,5)
+        x = ini['xp'] + random.randint(-5,5)
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("UPDATE players SET hp=?,gold=gold+?,exp=exp+?,energia=energia-2 WHERE id=?", (p_hp,g,x,uid))
+        conn.commit()
+        conn.close()
+        res = f"🏆 **VITÓRIA!**\n💰 +{g} | ✨ +{x}"
+    else:
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("UPDATE players SET hp=1,energia=energia-2 WHERE id=?", (uid,))
+        conn.commit()
+        conn.close()
+        res = "💀 **DERROTA!**"
+        g = x = 0
+    
+    await q.answer("⚔️ Combate!")
+    
+    cap = f"⚔️ **COMBATE**\n{'━'*20}\n🐺 **{inm}**\n_{ini['desc']}_\n\n❤️ Inimigo: {max(0,i_hp)}/{ini['hp']}\n└ {barra(max(0,i_hp),ini['hp'],'🟥')}\n\n❤️ Você: {p_hp}/{p['hp_max']}\n└ {barra(p_hp,p['hp_max'],'🟥')}\n\n📜 **Histórico:**\n" + "\n".join(log[-6:]) + f"\n\n{res}\n{'━'*20}"
+    kb = [[InlineKeyboardButton("🔙 Voltar",callback_data="voltar")]]
+    
     try: await q.message.delete()
     except: pass
-    await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["logo"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    await ctx.bot.send_photo(upd.effective_chat.id, IMG, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
-async def cheat_lv(upd, ctx):
-    q = upd.callback_query
-    uid = upd.effective_user.id
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("UPDATE players SET lv=99,exp=0,hp_max=9999,hp=9999,energia_max=999,energia=999 WHERE id=?", (uid,))
-    conn.commit()
-    conn.close()
-    await q.answer("⚡ LEVEL 99!", show_alert=True)
-    await menu(upd, ctx, uid, "⚡ **Level 99 alcançado!**")
-
-async def cheat_gold(upd, ctx):
-    q = upd.callback_query
-    uid = upd.effective_user.id
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("UPDATE players SET gold=999999 WHERE id=?", (uid,))
-    conn.commit()
-    conn.close()
-    await q.answer("💰 999,999 GOLD!", show_alert=True)
-    await menu(upd, ctx, uid, "💰 **999,999 gold recebido!**")
-
-# MAPAS
 async def mapas(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_player(uid)
+    p = get_p(uid)
     await q.answer()
-    cap = f"🗺️ **MAPAS DISPONÍVEIS**\n{'━'*20}\n"
+    cap = f"🗺️ **MAPAS**\n{'━'*20}\n"
     kb = []
     for mid, m in MAPAS.items():
-        status = "✅" if p['lv'] >= m['nivel_min'] else f"🔒 Lv.{m['nivel_min']}"
-        atual = " 📍" if mid == p['mapa_atual'] else ""
-        cap += f"{status} **{m['nome']}**{atual}\n└ XP: {m['xp']} | Gold: {m['gold']}\n"
-        if p['lv'] >= m['nivel_min']:
-            kb.append([InlineKeyboardButton(f"🗺️ {m['nome']}",f"viajar_{mid}")])
-    kb.append([InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")])
+        st = "✅" if p['lv'] >= m['lv'] else f"🔒 Lv.{m['lv']}"
+        at = " 📍" if mid == p['mapa'] else ""
+        cap += f"{st} {m['nome']}{at}\n"
+        if p['lv'] >= m['lv']:
+            kb.append([InlineKeyboardButton(f"🗺️ {m['nome']}",callback_data=f"via_{mid}")])
+    kb.append([InlineKeyboardButton("🔙 Voltar",callback_data="voltar")])
     cap += f"{'━'*20}"
     try:
         await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
@@ -236,106 +229,70 @@ async def viajar(upd, ctx):
     uid = upd.effective_user.id
     mid = int(q.data.split('_')[1])
     conn = sqlite3.connect(DB_FILE)
-    conn.execute("UPDATE players SET mapa_atual=? WHERE id=?", (mid,uid))
+    conn.execute("UPDATE players SET mapa=?,local='cap' WHERE id=?", (mid,uid))
     conn.commit()
     conn.close()
-    await q.answer(f"🗺️ Viajou para {MAPAS[mid]['nome']}!")
-    await menu(upd, ctx, uid, f"🗺️ **Chegou em {MAPAS[mid]['nome']}!**")
+    await q.answer("🗺️ Viajou!")
+    await menu(upd, ctx, uid, f"🗺️ **{MAPAS[mid]['nome']}!**")
 
-# CAÇAR
-async def cacar(upd, ctx):
+async def locais(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_player(uid)
-    if not p:
-        await q.answer("Crie personagem!", show_alert=True)
-        return
-    if p['energia'] < 2:
-        await q.answer("🪫 Sem energia!", show_alert=True)
-        return
-    await q.answer("⚔️ Caçando...")
-    
-    inimigos_mapa = [nome for nome, dados in INIMIGOS.items() if p['mapa_atual'] in dados['mapas']]
-    if not inimigos_mapa:
-        await menu(upd, ctx, uid, "❌ **Nenhum inimigo neste mapa!**")
-        return
-    
-    inimigo_nome = random.choice(inimigos_mapa)
-    inimigo = INIMIGOS[inimigo_nome]
-    
-    player_atk = atk_total(p)
-    player_def = def_total(p)
-    
-    dano_player = max(1, player_atk - (inimigo['atk']//2))
-    dano_inimigo = max(1, inimigo['atk'] - player_def)
-    
-    turnos = (inimigo['hp'] // dano_player) + 1
-    dano_total = dano_inimigo * turnos
-    
-    novo_hp = max(0, p['hp'] - dano_total)
-    gold_ganho = inimigo['gold'] + random.randint(-5, 5)
-    xp_ganho = inimigo['xp'] + random.randint(-5, 5)
-    
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("UPDATE players SET hp=?,gold=gold+?,exp=exp+?,energia=energia-2 WHERE id=?", (novo_hp, gold_ganho, xp_ganho, uid))
-    conn.commit()
-    conn.close()
-    
-    resultado = f"⚔️ **Batalha vs {inimigo_nome}!**\n💥 Dano recebido: -{dano_total}\n💰 Gold: +{gold_ganho}\n✨ XP: +{xp_ganho}"
-    await menu(upd, ctx, uid, resultado)
-
-# PERFIL
-async def perfil(upd, ctx):
-    q = upd.callback_query
-    uid = upd.effective_user.id
-    p = get_player(uid)
+    p = get_p(uid)
     await q.answer()
-    cap = f"👤 **PERFIL**\n{'━'*20}\n📛 {p['nome']}\n🎭 {p['classe']}\n⭐ Level {p['lv']}\n\n❤️ HP: {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n\n✨ XP: {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100,'🟦')}\n\n💰 Ouro: {p['gold']}\n⚡ Energia: {p['energia']}/{p['energia_max']}\n⚔️ Ataque: {atk_total(p)}\n🛡️ Defesa: {def_total(p)}\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")]]
-    try: await q.message.delete()
-    except: pass
-    await ctx.bot.send_photo(upd.effective_chat.id, img_classe(p['classe']), caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-
-# INVENTÁRIO
-async def inventario(upd, ctx):
-    q = upd.callback_query
-    uid = upd.effective_user.id
-    p = get_player(uid)
-    items = get_inventario(uid)
-    await q.answer()
-    cap = f"🎒 **MOCHILA DE {p['nome'].upper()}**\n{'━'*20}\n💰 Ouro: {p['gold']}\n⚡ Energia: {p['energia']}/{p['energia_max']}\n\n📦 **Equipamentos:**\n"
-    if p['arma']:
-        cap += f"⚔️ {p['arma']} (+{EQUIPAMENTOS[p['arma']]['atk']} ATK)\n"
-    if p['armadura']:
-        cap += f"🛡️ {p['armadura']} (+{EQUIPAMENTOS[p['armadura']]['def']} DEF)\n"
-    cap += f"\n📦 **Itens:**\n"
-    if items:
-        for i in items:
-            cap += f"└ {i['item']} x{i['qtd']}\n"
-    else:
-        cap += "└ _Vazio_\n"
+    m = MAPAS.get(p['mapa'], {})
+    cap = f"🏘️ **LOCAIS**\n{'━'*20}\n"
+    kb = []
+    for lid, loc in m.get('loc',{}).items():
+        at = " 📍" if lid == p['local'] else ""
+        cap += f"🏠 {loc['nome']}{at}\n"
+        kb.append([InlineKeyboardButton(f"📍 {loc['nome']}",callback_data=f"iloc_{lid}")])
+    kb.append([InlineKeyboardButton("🔙 Voltar",callback_data="voltar")])
     cap += f"{'━'*20}"
-    kb = [[InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")]]
-    try: await q.message.delete()
-    except: pass
-    await ctx.bot.send_photo(upd.effective_chat.id, img_classe(p['classe']), caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    try:
+        await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    except:
+        await q.edit_message_text(cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
-# LOJA
+async def ir_loc(upd, ctx):
+    q = upd.callback_query
+    uid = upd.effective_user.id
+    p = get_p(uid)
+    lid = q.data.split('_')[1]
+    conn = sqlite3.connect(DB_FILE)
+    conn.execute("UPDATE players SET local=? WHERE id=?", (lid,uid))
+    conn.commit()
+    conn.close()
+    ln = MAPAS[p['mapa']]['loc'][lid]['nome']
+    await q.answer(f"📍 {ln}")
+    await menu(upd, ctx, uid, f"📍 **{ln}**")
+
 async def loja(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_player(uid)
+    p = get_p(uid)
     await q.answer()
-    cap = f"🏪 **LOJA**\n{'━'*20}\n💰 Seu gold: {p['gold']}\n\n**Equipamentos:**\n"
+    
+    loc = MAPAS[p['mapa']]['loc'][p['local']]
+    tlj = loc.get('loja','normal')
+    
+    if tlj == "contra":
+        cap = f"🏴‍☠️ **CONTRABANDISTA**\n{'━'*20}\n💰 {p['gold']}\n⚠️ **-30% preço**\n❗ **5% roubo**\n\n"
+        desc = 0.7
+    else:
+        cap = f"🏪 **LOJA**\n{'━'*20}\n💰 {p['gold']}\n\n"
+        desc = 1.0
+    
     kb = []
-    for nome, eq in EQUIPAMENTOS.items():
-        status = "✅" if p['lv'] >= eq['lv'] else f"🔒 Lv.{eq['lv']}"
-        tipo_emoji = "⚔️" if eq['tipo']=="arma" else "🛡️"
+    for n, eq in EQUIPS.items():
+        pf = int(eq['p'] * desc)
+        st = "✅" if p['lv'] >= eq['lv'] else f"🔒 Lv.{eq['lv']}"
+        em = "⚔️" if eq['t']=="arma" else "🛡️"
         stat = f"+{eq.get('atk',eq.get('def'))}"
-        cap += f"{status} {tipo_emoji} **{nome}** {stat}\n└ 💰 {eq['preco']} gold\n"
-        if p['lv'] >= eq['lv'] and p['gold'] >= eq['preco']:
-            kb.append([InlineKeyboardButton(f"💰 Comprar {nome}",f"comprar_{nome}")])
-    kb.append([InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")])
+        cap += f"{st} {em} {n} {stat}\n└ 💰 {pf}\n"
+        if p['lv'] >= eq['lv'] and p['gold'] >= pf:
+            kb.append([InlineKeyboardButton(f"💰 {n}",callback_data=f"comp_{n}_{tlj}")])
+    kb.append([InlineKeyboardButton("🔙 Voltar",callback_data="voltar")])
     cap += f"{'━'*20}"
     try:
         await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
@@ -345,129 +302,231 @@ async def loja(upd, ctx):
 async def comprar(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_player(uid)
-    item = '_'.join(q.data.split('_')[1:])
-    eq = EQUIPAMENTOS[item]
-    if p['gold'] < eq['preco']:
-        await q.answer("💸 Gold insuficiente!", show_alert=True)
+    p = get_p(uid)
+    pts = q.data.split('_')
+    item = '_'.join(pts[1:-1])
+    tlj = pts[-1]
+    
+    eq = EQUIPS[item]
+    desc = 0.7 if tlj == "contra" else 1.0
+    preco = int(eq['p'] * desc)
+    
+    if p['gold'] < preco:
+        await q.answer("💸 Sem gold!", show_alert=True)
         return
+    
+    if tlj == "contra" and random.random() < 0.05:
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("UPDATE players SET gold=gold-? WHERE id=?", (preco,uid))
+        conn.commit()
+        conn.close()
+        await q.answer("🏴‍☠️ Roubado!", show_alert=True)
+        await menu(upd, ctx, uid, "🏴‍☠️ **ROUBADO!**\nPerdeu gold sem item!")
+        return
+    
     conn = sqlite3.connect(DB_FILE)
-    if eq['tipo']=="arma":
-        conn.execute("UPDATE players SET gold=gold-?,arma=?,atk_bonus=? WHERE id=?", (eq['preco'],item,eq['atk'],uid))
+    if eq['t']=="arma":
+        conn.execute("UPDATE players SET gold=gold-?,arma=?,atk_b=? WHERE id=?", (preco,item,eq['atk'],uid))
     else:
-        conn.execute("UPDATE players SET gold=gold-?,armadura=?,def_bonus=? WHERE id=?", (eq['preco'],item,eq['def'],uid))
+        conn.execute("UPDATE players SET gold=gold-?,arm=?,def_b=? WHERE id=?", (preco,item,eq['def'],uid))
     conn.commit()
     conn.close()
-    await q.answer(f"✅ {item} comprado!", show_alert=True)
-    await menu(upd, ctx, uid, f"✅ **{item} equipado!**")
+    await q.answer(f"✅ {item}!", show_alert=True)
+    await menu(upd, ctx, uid, f"✅ **{item}!**")
 
-# DUNGEONS
-async def dungeons(upd, ctx):
+async def dungs(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_player(uid)
+    p = get_p(uid)
     await q.answer()
     cap = f"🏰 **DUNGEONS**\n{'━'*20}\n"
     kb = []
     for i, d in enumerate(DUNGEONS):
-        status = "✅" if p['lv'] >= d['lv'] else f"🔒 Lv.{d['lv']}"
-        cap += f"{status} **{d['nome']}**\n└ Boss: {d['boss']}\n└ XP: {d['xp']} | Gold: {d['gold']}\n"
+        st = "✅" if p['lv'] >= d['lv'] else f"🔒 Lv.{d['lv']}"
+        cap += f"{st} {d['nome']}\n└ {d['boss']}\n└ XP: {d['xp']} | Gold: {d['g']}\n"
         if p['lv'] >= d['lv']:
-            kb.append([InlineKeyboardButton(f"🏰 {d['nome']}",f"dungeon_{i}")])
-    kb.append([InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")])
+            kb.append([InlineKeyboardButton(f"🏰 {d['nome']}",callback_data=f"dung_{i}")])
+    kb.append([InlineKeyboardButton("🔙 Voltar",callback_data="voltar")])
     cap += f"{'━'*20}"
     try:
         await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     except:
         await q.edit_message_text(cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
-async def entrar_dungeon(upd, ctx):
+async def dung(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_player(uid)
+    p = get_p(uid)
     did = int(q.data.split('_')[1])
     d = DUNGEONS[did]
     if p['energia'] < 10:
-        await q.answer("🪫 Precisa de 10 energia!", show_alert=True)
+        await q.answer("🪫 10 energia!", show_alert=True)
         return
-    await q.answer("🏰 Entrando na dungeon...")
     
-    boss_hp = 500 + (did*200)
-    boss_atk = 30 + (did*10)
-    player_atk = atk_total(p)
-    player_def = def_total(p)
+    await q.answer("🏰 Entrando...")
     
-    dano = max(1, boss_atk - player_def)
-    vitoria = random.choice([True, False]) if p['lv'] >= d['lv'] else False
+    p_atk = atk(p)
+    p_def = deff(p)
+    bhp = d['bhp']
+    batk = d['batk']
+    php = p['hp']
     
-    if vitoria:
+    log = []
+    t = 1
+    
+    while php > 0 and bhp > 0 and t <= 15:
+        dp = max(1, p_atk - 5 + random.randint(-3,3))
+        bhp -= dp
+        log.append(f"↗️ T{t}: -{dp}")
+        if bhp <= 0: break
+        db = max(1, batk - p_def + random.randint(-3,3))
+        php -= db
+        log.append(f"↘️ T{t}: -{db}")
+        t += 1
+    
+    vit = php > 0
+    php = max(1, php)
+    
+    if vit:
         conn = sqlite3.connect(DB_FILE)
-        conn.execute("UPDATE players SET gold=gold+?,exp=exp+?,energia=energia-10,hp=MAX(1,hp-?) WHERE id=?", (d['gold'],d['xp'],dano,uid))
-        conn.execute("INSERT OR IGNORE INTO dungeons_completas VALUES (?,?)", (uid,did))
+        conn.execute("UPDATE players SET gold=gold+?,exp=exp+?,energia=energia-10,hp=? WHERE id=?", (d['g'],d['xp'],php,uid))
+        conn.execute("INSERT OR IGNORE INTO dung VALUES (?,?)", (uid,did))
         conn.commit()
         conn.close()
-        resultado = f"🏆 **VITÓRIA vs {d['boss']}!**\n💥 Dano: -{dano}\n💰 Gold: +{d['gold']}\n✨ XP: +{d['xp']}"
+        res = f"🏆 **VIT!**\n💰 +{d['g']} | ✨ +{d['xp']}"
     else:
         conn = sqlite3.connect(DB_FILE)
-        conn.execute("UPDATE players SET energia=energia-10,hp=MAX(1,hp-?) WHERE id=?", (dano*2,uid))
+        conn.execute("UPDATE players SET energia=energia-10,hp=1 WHERE id=?", (uid,))
         conn.commit()
         conn.close()
-        resultado = f"💀 **DERROTA vs {d['boss']}**\n💥 Dano: -{dano*2}\nTente quando estiver mais forte!"
+        res = "💀 **DERROT!**"
     
-    await menu(upd, ctx, uid, resultado)
+    cap = f"🏰 **{d['nome']}**\n{'━'*20}\n👹 {d['boss']}\n\n❤️ Boss: {max(0,bhp)}/{d['bhp']}\n└ {barra(max(0,bhp),d['bhp'],'🟥')}\n\n❤️ Você: {php}/{p['hp_max']}\n└ {barra(php,p['hp_max'],'🟥')}\n\n📜:\n" + "\n".join(log[-6:]) + f"\n\n{res}\n{'━'*20}"
+    kb = [[InlineKeyboardButton("🔙 Voltar",callback_data="voltar")]]
+    
+    try: await q.message.delete()
+    except: pass
+    await ctx.bot.send_photo(upd.effective_chat.id, IMG, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
-# VOLTAR
-async def voltar_menu(upd, ctx):
+async def perfil(upd, ctx):
+    q = upd.callback_query
+    uid = upd.effective_user.id
+    p = get_p(uid)
+    await q.answer()
+    cap = f"👤 **PERFIL**\n{'━'*20}\n📛 {p['nome']}\n🎭 {p['classe']}\n⭐ Lv {p['lv']}\n\n❤️ {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n✨ {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100,'🟦')}\n\n💰 {p['gold']}\n⚡ {p['energia']}/{p['energia_max']}\n⚔️ {atk(p)}\n🛡️ {deff(p)}\n{'━'*20}"
+    if p['arma']:
+        cap += f"\n⚔️ {p['arma']}"
+    if p['arm']:
+        cap += f"\n🛡️ {p['arm']}"
+    kb = [[InlineKeyboardButton("🔙 Voltar",callback_data="voltar")]]
+    try: await q.message.delete()
+    except: pass
+    await ctx.bot.send_photo(upd.effective_chat.id, img_c(p['classe']), caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+
+async def cfg(upd, ctx):
+    q = upd.callback_query
+    await q.answer()
+    cap = f"⚙️ **CONFIG**\n{'━'*20}\n🔄 Reset\n⚡ Lv MAX\n💰 Gold MAX\n{'━'*20}"
+    kb = [[InlineKeyboardButton("🔄 Reset",callback_data="rst_c")],[InlineKeyboardButton("⚡ Lv MAX",callback_data="ch_lv")],[InlineKeyboardButton("💰 Gold MAX",callback_data="ch_g")],[InlineKeyboardButton("🔙 Voltar",callback_data="voltar")]]
+    try:
+        await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    except:
+        await q.edit_message_text(cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+
+async def rst_c(upd, ctx):
+    q = upd.callback_query
+    await q.answer()
+    cap = f"⚠️ **DELETAR?**\n{'━'*20}\n❌ IRREVERSÍVEL\n{'━'*20}"
+    kb = [[InlineKeyboardButton("✅ SIM",callback_data="rst_y")],[InlineKeyboardButton("❌ NÃO",callback_data="cfg")]]
+    try:
+        await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    except:
+        await q.edit_message_text(cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+
+async def rst_y(upd, ctx):
+    q = upd.callback_query
+    uid = upd.effective_user.id
+    del_p(uid)
+    await q.answer("✅ Deletado!", show_alert=True)
+    
+    # FIX: Vai direto para criação
+    ctx.user_data.clear()
+    cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nVersão: `{VERSAO}`\n{'━'*20}"
+    kb = [[InlineKeyboardButton("🎮 Começar",callback_data="ir_cls")]]
+    
+    try: await q.message.delete()
+    except: pass
+    await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["logo"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+
+async def ch_lv(upd, ctx):
+    q = upd.callback_query
+    uid = upd.effective_user.id
+    conn = sqlite3.connect(DB_FILE)
+    conn.execute("UPDATE players SET lv=99,exp=0,hp_max=9999,hp=9999,energia_max=999,energia=999 WHERE id=?", (uid,))
+    conn.commit()
+    conn.close()
+    await q.answer("⚡ 99!", show_alert=True)
+    await menu(upd, ctx, uid, "⚡ **Lv 99!**")
+
+async def ch_g(upd, ctx):
+    q = upd.callback_query
+    uid = upd.effective_user.id
+    conn = sqlite3.connect(DB_FILE)
+    conn.execute("UPDATE players SET gold=999999 WHERE id=?", (uid,))
+    conn.commit()
+    conn.close()
+    await q.answer("💰 999,999!", show_alert=True)
+    await menu(upd, ctx, uid, "💰 **999,999!**")
+
+async def voltar(upd, ctx):
     q = upd.callback_query
     await q.answer()
     await menu(upd, ctx, upd.effective_user.id)
 
-# CRIAR PERSONAGEM
 async def start(upd, ctx):
     uid = upd.effective_user.id
-    p = get_player(uid)
+    p = get_p(uid)
     if p:
         await menu(upd, ctx, uid)
         return ConversationHandler.END
     ctx.user_data.clear()
-    cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nUm RPG épico!\nVersão: `{VERSAO}`\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🎮 Começar", callback_data="ir_para_classes")]]
+    cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nVersão: `{VERSAO}`\n{'━'*20}"
+    kb = [[InlineKeyboardButton("🎮 Começar",callback_data="ir_cls")]]
     await upd.message.reply_photo(IMAGENS["logo"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-    return TELA_CLASSE
+    return ST_CL
 
-async def menu_classes(upd, ctx):
+async def menu_cls(upd, ctx):
     q = upd.callback_query
     await q.answer()
-    cap = f"🎭 **ESCOLHA SUA CLASSE**\n{'━'*20}\n🛡️ **Guerreiro** - Forte\n🏹 **Arqueiro** - Ágil\n🔮 **Bruxa** - Sábia\n🔥 **Mago** - Poderoso\n{'━'*20}"
+    cap = f"🎭 **CLASSES**\n{'━'*20}\n🛡️ Guerreiro\n🏹 Arqueiro\n🔮 Bruxa\n🔥 Mago\n{'━'*20}"
     kb = [[InlineKeyboardButton("🛡️ Guerreiro",callback_data="Guerreiro"),InlineKeyboardButton("🏹 Arqueiro",callback_data="Arqueiro")],[InlineKeyboardButton("🔮 Bruxa",callback_data="Bruxa"),InlineKeyboardButton("🔥 Mago",callback_data="Mago")]]
     try: await q.message.delete()
     except: pass
-    await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["selecao_classes"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-    return TELA_NOME
+    await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["sel"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    return ST_NM
 
-async def salvar_nome(upd, ctx):
+async def salv_nm(upd, ctx):
     q = upd.callback_query
     ctx.user_data['classe'] = q.data
     await q.answer()
-    cap = f"✅ **{q.data.upper()} selecionado!**\n{'━'*20}\nDigite o **nome** do seu herói:"
+    cap = f"✅ **{q.data.upper()}**\n{'━'*20}\nNome:"
     try: await q.message.delete()
     except: pass
-    await ctx.bot.send_photo(upd.effective_chat.id, img_classe(q.data), caption=cap, parse_mode='Markdown')
-    return TELA_NOME
+    await ctx.bot.send_photo(upd.effective_chat.id, img_c(q.data), caption=cap, parse_mode='Markdown')
+    return ST_NM
 
-async def finalizar(upd, ctx):
+async def fin(upd, ctx):
     uid = upd.effective_user.id
     nome = upd.message.text
     classe = ctx.user_data.get('classe','Guerreiro')
     conn = sqlite3.connect(DB_FILE)
-    conn.execute("INSERT OR REPLACE INTO players VALUES (?,?,?,100,100,1,0,100,20,20,1,NULL,NULL,0,0)", (uid,nome,classe))
+    conn.execute("INSERT OR REPLACE INTO players VALUES (?,?,?,100,100,1,0,100,20,20,1,'cap',NULL,NULL,0,0)", (uid,nome,classe))
     conn.commit()
     conn.close()
-    await upd.message.reply_text(f"✨ **{nome}** criado!")
+    await upd.message.reply_text(f"✨ **{nome}!**")
     await menu(upd, ctx, uid)
     return ConversationHandler.END
 
-# MAIN
 def main():
     init_db()
     token = os.getenv("TELEGRAM_TOKEN")
@@ -476,8 +535,8 @@ def main():
     conv = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            TELA_CLASSE: [CallbackQueryHandler(menu_classes, pattern='^ir_para_classes$')],
-            TELA_NOME: [CallbackQueryHandler(salvar_nome), MessageHandler(filters.TEXT & ~filters.COMMAND, finalizar)]
+            ST_CL: [CallbackQueryHandler(menu_cls, pattern='^ir_cls$')],
+            ST_NM: [CallbackQueryHandler(salv_nm), MessageHandler(filters.TEXT & ~filters.COMMAND, fin)]
         },
         fallbacks=[CommandHandler('start', start)]
     )
@@ -485,19 +544,20 @@ def main():
     app.add_handler(conv)
     app.add_handler(CallbackQueryHandler(cacar, pattern='^cacar$'))
     app.add_handler(CallbackQueryHandler(mapas, pattern='^mapas$'))
-    app.add_handler(CallbackQueryHandler(viajar, pattern='^viajar_'))
+    app.add_handler(CallbackQueryHandler(viajar, pattern='^via_'))
+    app.add_handler(CallbackQueryHandler(locais, pattern='^locais$'))
+    app.add_handler(CallbackQueryHandler(ir_loc, pattern='^iloc_'))
     app.add_handler(CallbackQueryHandler(perfil, pattern='^perfil$'))
-    app.add_handler(CallbackQueryHandler(inventario, pattern='^inventario$'))
     app.add_handler(CallbackQueryHandler(loja, pattern='^loja$'))
-    app.add_handler(CallbackQueryHandler(comprar, pattern='^comprar_'))
-    app.add_handler(CallbackQueryHandler(dungeons, pattern='^dungeons$'))
-    app.add_handler(CallbackQueryHandler(entrar_dungeon, pattern='^dungeon_'))
-    app.add_handler(CallbackQueryHandler(config, pattern='^config$'))
-    app.add_handler(CallbackQueryHandler(reset_conf, pattern='^reset_conf$'))
-    app.add_handler(CallbackQueryHandler(reset_yes, pattern='^reset_yes$'))
-    app.add_handler(CallbackQueryHandler(cheat_lv, pattern='^cheat_lv$'))
-    app.add_handler(CallbackQueryHandler(cheat_gold, pattern='^cheat_gold$'))
-    app.add_handler(CallbackQueryHandler(voltar_menu, pattern='^voltar_menu$'))
+    app.add_handler(CallbackQueryHandler(comprar, pattern='^comp_'))
+    app.add_handler(CallbackQueryHandler(dungs, pattern='^dungs$'))
+    app.add_handler(CallbackQueryHandler(dung, pattern='^dung_'))
+    app.add_handler(CallbackQueryHandler(cfg, pattern='^cfg$'))
+    app.add_handler(CallbackQueryHandler(rst_c, pattern='^rst_c$'))
+    app.add_handler(CallbackQueryHandler(rst_y, pattern='^rst_y$'))
+    app.add_handler(CallbackQueryHandler(ch_lv, pattern='^ch_lv$'))
+    app.add_handler(CallbackQueryHandler(ch_g, pattern='^ch_g$'))
+    app.add_handler(CallbackQueryHandler(voltar, pattern='^voltar$'))
     
     app.run_polling(drop_pending_updates=True)
 
