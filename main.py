@@ -122,7 +122,7 @@ async def menu(upd, ctx, uid, txt=""):
     if not p: return
     mapa = MAPAS.get(p['mapa_atual'], {}).get('nome', '?')
     cap = f"🎮 **{VERSAO}**\n{'━'*20}\n👤 **{p['nome']}** — *{p['classe']} Lv. {p['lv']}*\n🗺️ **Local:** {mapa}\n\n❤️ **HP:** {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n\n✨ **XP:** {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100)}\n\n⚔️ **ATK:** {atk_total(p)} | 🛡️ **DEF:** {def_total(p)}\n💰 **Gold:** `{p['gold']}` | ⚡ **Energy:** `{p['energia']}/{p['energia_max']}`\n{'━'*20}\n{txt}"
-    kb = [[InlineKeyboardButton("⚔️ Caçar","cacar"),InlineKeyboardButton("🗺️ Mapas","mapas")],[InlineKeyboardButton("🎒 Mochila","inventario"),InlineKeyboardButton("👤 Status","perfil")],[InlineKeyboardButton("🏪 Loja","loja"),InlineKeyboardButton("🏰 Dungeons","dungeons")],[InlineKeyboardButton("⚙️ Config","config")]]
+    kb = [[InlineKeyboardButton("⚔️ Caçar",callback_data="cacar"),InlineKeyboardButton("🗺️ Mapas",callback_data="mapas")],[InlineKeyboardButton("🎒 Mochila",callback_data="inventario"),InlineKeyboardButton("👤 Status",callback_data="perfil")],[InlineKeyboardButton("🏪 Loja",callback_data="loja"),InlineKeyboardButton("🏰 Dungeons",callback_data="dungeons")],[InlineKeyboardButton("⚙️ Config",callback_data="config")]]
     img = img_classe(p['classe'])
     if upd.callback_query:
         try:
@@ -139,7 +139,7 @@ async def config(upd, ctx):
     q = upd.callback_query
     await q.answer()
     cap = f"⚙️ **CONFIGURAÇÕES**\n{'━'*20}\n🔄 **Reset** - Recomeçar\n⚡ **Level MAX** - Level 99\n💰 **Gold MAX** - 999,999 gold\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🔄 Reset","reset_conf")],[InlineKeyboardButton("⚡ Level MAX","cheat_lv")],[InlineKeyboardButton("💰 Gold MAX","cheat_gold")],[InlineKeyboardButton("🔙 Voltar","voltar_menu")]]
+    kb = [[InlineKeyboardButton("🔄 Reset",callback_data="reset_conf")],[InlineKeyboardButton("⚡ Level MAX",callback_data="cheat_lv")],[InlineKeyboardButton("💰 Gold MAX",callback_data="cheat_gold")],[InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")]]
     try:
         await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     except:
@@ -149,7 +149,7 @@ async def reset_conf(upd, ctx):
     q = upd.callback_query
     await q.answer()
     cap = f"⚠️ **ATENÇÃO!**\n{'━'*20}\n**DELETAR** personagem?\n❌ **IRREVERSÍVEL**!\nPerderá tudo!\n{'━'*20}"
-    kb = [[InlineKeyboardButton("✅ SIM","reset_yes")],[InlineKeyboardButton("❌ NÃO","config")]]
+    kb = [[InlineKeyboardButton("✅ SIM",callback_data="reset_yes")],[InlineKeyboardButton("❌ NÃO",callback_data="config")]]
     try:
         await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     except:
@@ -161,7 +161,7 @@ async def reset_yes(upd, ctx):
     delete_player(uid)
     await q.answer("✅ Deletado!", show_alert=True)
     cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nPersonagem deletado.\nCrie um novo!\nVersão: `{VERSAO}`\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🎮 Criar Novo","ir_para_classes")]]
+    kb = [[InlineKeyboardButton("🎮 Criar Novo",callback_data="ir_para_classes")]]
     try: await q.message.delete()
     except: pass
     await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["logo"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
@@ -200,7 +200,7 @@ async def mapas(upd, ctx):
         cap += f"{status} **{m['nome']}**{atual}\n└ XP: {m['xp']} | Gold: {m['gold']}\n"
         if p['lv'] >= m['nivel_min']:
             kb.append([InlineKeyboardButton(f"🗺️ {m['nome']}",f"viajar_{mid}")])
-    kb.append([InlineKeyboardButton("🔙 Voltar","voltar_menu")])
+    kb.append([InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")])
     cap += f"{'━'*20}"
     try:
         await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
@@ -267,7 +267,7 @@ async def perfil(upd, ctx):
     p = get_player(uid)
     await q.answer()
     cap = f"👤 **PERFIL**\n{'━'*20}\n📛 {p['nome']}\n🎭 {p['classe']}\n⭐ Level {p['lv']}\n\n❤️ HP: {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n\n✨ XP: {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100)}\n\n💰 Ouro: {p['gold']}\n⚡ Energia: {p['energia']}/{p['energia_max']}\n⚔️ Ataque: {atk_total(p)}\n🛡️ Defesa: {def_total(p)}\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🔙 Voltar","voltar_menu")]]
+    kb = [[InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")]]
     try: await q.message.delete()
     except: pass
     await ctx.bot.send_photo(upd.effective_chat.id, img_classe(p['classe']), caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
@@ -291,7 +291,7 @@ async def inventario(upd, ctx):
     else:
         cap += "└ _Vazio_\n"
     cap += f"{'━'*20}"
-    kb = [[InlineKeyboardButton("🔙 Voltar","voltar_menu")]]
+    kb = [[InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")]]
     try: await q.message.delete()
     except: pass
     await ctx.bot.send_photo(upd.effective_chat.id, img_classe(p['classe']), caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
@@ -311,7 +311,7 @@ async def loja(upd, ctx):
         cap += f"{status} {tipo_emoji} **{nome}** {stat}\n└ 💰 {eq['preco']} gold\n"
         if p['lv'] >= eq['lv'] and p['gold'] >= eq['preco']:
             kb.append([InlineKeyboardButton(f"💰 Comprar {nome}",f"comprar_{nome}")])
-    kb.append([InlineKeyboardButton("🔙 Voltar","voltar_menu")])
+    kb.append([InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")])
     cap += f"{'━'*20}"
     try:
         await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
@@ -350,7 +350,7 @@ async def dungeons(upd, ctx):
         cap += f"{status} **{d['nome']}**\n└ Boss: {d['boss']}\n└ XP: {d['xp']} | Gold: {d['gold']}\n"
         if p['lv'] >= d['lv']:
             kb.append([InlineKeyboardButton(f"🏰 {d['nome']}",f"dungeon_{i}")])
-    kb.append([InlineKeyboardButton("🔙 Voltar","voltar_menu")])
+    kb.append([InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")])
     cap += f"{'━'*20}"
     try:
         await q.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
@@ -407,7 +407,7 @@ async def start(upd, ctx):
         return ConversationHandler.END
     ctx.user_data.clear()
     cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nUm RPG épico!\nVersão: `{VERSAO}`\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🎮 Começar","ir_para_classes")]]
+    kb = [[InlineKeyboardButton("🎮 Começar", callback_data="ir_para_classes")]]
     await upd.message.reply_photo(IMAGENS["logo"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     return TELA_CLASSE
 
@@ -415,7 +415,7 @@ async def menu_classes(upd, ctx):
     q = upd.callback_query
     await q.answer()
     cap = f"🎭 **ESCOLHA SUA CLASSE**\n{'━'*20}\n🛡️ **Guerreiro** - Forte\n🏹 **Arqueiro** - Ágil\n🔮 **Bruxa** - Sábia\n🔥 **Mago** - Poderoso\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🛡️ Guerreiro","Guerreiro"),InlineKeyboardButton("🏹 Arqueiro","Arqueiro")],[InlineKeyboardButton("🔮 Bruxa","Bruxa"),InlineKeyboardButton("🔥 Mago","Mago")]]
+    kb = [[InlineKeyboardButton("🛡️ Guerreiro",callback_data="Guerreiro"),InlineKeyboardButton("🏹 Arqueiro",callback_data="Arqueiro")],[InlineKeyboardButton("🔮 Bruxa",callback_data="Bruxa"),InlineKeyboardButton("🔥 Mago",callback_data="Mago")]]
     try: await q.message.delete()
     except: pass
     await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["selecao_classes"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
