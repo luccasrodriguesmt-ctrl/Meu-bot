@@ -7,17 +7,29 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=lo
 DB_FILE = "rpg_game.db"
 
 # IMAGENS
+# Lista com as suas 7 imagens do GitHub para uso aleatório
+MINHAS_FOTOS = [
+    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/WhatsApp%20Image%202026-02-15%20at%2009.06.10.jpeg",
+    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_l46bisl46bisl46b.png",
+    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_n68a2ln68a2ln68a.png",
+    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_o1dtmio1dtmio1dt.png",
+    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_fyofu7fyofu7fyof.png",
+    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_8nad348nad348nad.png",
+    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_dxklz9dxklz9dxkl.png"
+]
+
 IMAGENS = {
-    "logo": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/WhatsApp%20Image%202026-02-15%20at%2009.06.10.jpeg?raw=true",
-    "selecao_classes": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_l46bisl46bisl46b.png?raw=true",
+    "logo": MINHAS_FOTOS[0],
+    "selecao_classes": MINHAS_FOTOS[1],
     "classes": {
-        "Guerreiro": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_n68a2ln68a2ln68a.png?raw=true",
-        "Arqueiro": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_o1dtmio1dtmio1dt.png?raw=true",
-        "Bruxa": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_fyofu7fyofu7fyof.png?raw=true",
-        "Mago": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_8nad348nad348nad.png?raw=true"
+        "Guerreiro": MINHAS_FOTOS[2],
+        "Arqueiro": MINHAS_FOTOS[3],
+        "Bruxa": MINHAS_FOTOS[4],
+        "Mago": MINHAS_FOTOS[5]
     },
-    "mapas": {i: f"https://via.placeholder.com/800x600?text=Mapa+{i}" for i in range(1, 7)},
-    "inimigos": {nome: f"https://via.placeholder.com/400x400?text={nome}" for nome in ["Goblin", "Lobo", "Orc", "Esqueleto", "Dragão"]}
+    # Aqui o bot escolhe uma das suas 7 fotos ao acaso para cada mapa ou inimigo
+    "mapas": {i: random.choice(MINHAS_FOTOS) for i in range(1, 7)},
+    "inimigos": {nome: random.choice(MINHAS_FOTOS) for nome in ["Goblin", "Lobo", "Orc", "Esqueleto", "Dragão"]}
 }
 
 # DADOS DO JOGO
