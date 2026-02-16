@@ -2,34 +2,22 @@ import os, random, sqlite3, logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
-VERSAO = "2.0.0 - Sistema Completo"
+VERSAO = "2.0.1 - Sistema Completo FIXED"
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 DB_FILE = "rpg_game.db"
 
 # IMAGENS
-# Lista com as suas 7 imagens do GitHub para uso aleatório
-MINHAS_FOTOS = [
-    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/WhatsApp%20Image%202026-02-15%20at%2009.06.10.jpeg",
-    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_l46bisl46bisl46b.png",
-    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_n68a2ln68a2ln68a.png",
-    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_o1dtmio1dtmio1dt.png",
-    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_fyofu7fyofu7fyof.png",
-    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_8nad348nad348nad.png",
-    "https://raw.githubusercontent.com/luccasrodriguesmt-ctrl/Meu-bot/main/images/Gemini_Generated_Image_dxklz9dxklz9dxkl.png"
-]
-
 IMAGENS = {
-    "logo": MINHAS_FOTOS[0],
-    "selecao_classes": MINHAS_FOTOS[1],
+    "logo": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/WhatsApp%20Image%202026-02-15%20at%2009.06.10.jpeg?raw=true",
+    "selecao_classes": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_l46bisl46bisl46b.png?raw=true",
     "classes": {
-        "Guerreiro": MINHAS_FOTOS[2],
-        "Arqueiro": MINHAS_FOTOS[3],
-        "Bruxa": MINHAS_FOTOS[4],
-        "Mago": MINHAS_FOTOS[5]
+        "Guerreiro": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_n68a2ln68a2ln68a.png?raw=true",
+        "Arqueiro": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_o1dtmio1dtmio1dt.png?raw=true",
+        "Bruxa": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_fyofu7fyofu7fyof.png?raw=true",
+        "Mago": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_8nad348nad348nad.png?raw=true"
     },
-    # Aqui o bot escolhe uma das suas 7 fotos ao acaso para cada mapa ou inimigo
-    "mapas": {i: random.choice(MINHAS_FOTOS) for i in range(1, 7)},
-    "inimigos": {nome: random.choice(MINHAS_FOTOS) for nome in ["Goblin", "Lobo", "Orc", "Esqueleto", "Dragão"]}
+    "mapas": {i: f"https://via.placeholder.com/800x600?text=Mapa+{i}" for i in range(1, 7)},
+    "inimigos": {nome: f"https://via.placeholder.com/400x400?text={nome}" for nome in ["Goblin", "Lobo", "Orc", "Esqueleto", "Dragão"]}
 }
 
 # DADOS DO JOGO
@@ -114,9 +102,9 @@ def adicionar_item(uid, item, qtd=1):
     conn.close()
 
 # UTILS
-def barra(atual, total, cor="🟦"):
-    if total <= 0: return "⬜"*10
-    p = max(0, min(atual/total, 1))
+def barra(atual, max, cor="🟦"):
+    if max <= 0: return "⬜"*10
+    p = max(0, min(atual/max, 1))
     return cor*int(p*10) + "⬜"*(10-int(p*10))
 
 def img_classe(c):
@@ -243,7 +231,6 @@ async def cacar(upd, ctx):
         return
     await q.answer("⚔️ Caçando...")
     
-    # Inimigos do mapa atual
     inimigos_mapa = [nome for nome, dados in INIMIGOS.items() if p['mapa_atual'] in dados['mapas']]
     if not inimigos_mapa:
         await menu(upd, ctx, uid, "❌ **Nenhum inimigo neste mapa!**")
@@ -252,7 +239,6 @@ async def cacar(upd, ctx):
     inimigo_nome = random.choice(inimigos_mapa)
     inimigo = INIMIGOS[inimigo_nome]
     
-    # Combate simplificado
     player_atk = atk_total(p)
     player_def = def_total(p)
     
@@ -382,7 +368,6 @@ async def entrar_dungeon(upd, ctx):
         return
     await q.answer("🏰 Entrando na dungeon...")
     
-    # Combate simplificado com boss
     boss_hp = 500 + (did*200)
     boss_atk = 30 + (did*10)
     player_atk = atk_total(p)
@@ -422,7 +407,7 @@ async def start(upd, ctx):
         return ConversationHandler.END
     ctx.user_data.clear()
     cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nUm RPG épico!\nVersão: `{VERSAO}`\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🎮 Começar", callback_data="ir_para_classes")]]
+    kb = [[InlineKeyboardButton("🎮 Começar","ir_para_classes")]]
     await upd.message.reply_photo(IMAGENS["logo"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     return TELA_CLASSE
 
@@ -430,13 +415,7 @@ async def menu_classes(upd, ctx):
     q = upd.callback_query
     await q.answer()
     cap = f"🎭 **ESCOLHA SUA CLASSE**\n{'━'*20}\n🛡️ **Guerreiro** - Forte\n🏹 **Arqueiro** - Ágil\n🔮 **Bruxa** - Sábia\n🔥 **Mago** - Poderoso\n{'━'*20}"
-   kb = [[
-    InlineKeyboardButton("🛡️ Guerreiro", callback_data="Guerreiro"),
-    InlineKeyboardButton("🏹 Arqueiro", callback_data="Arqueiro")
-], [
-    InlineKeyboardButton("🔮 Bruxa", callback_data="Bruxa"),
-    InlineKeyboardButton("🔥 Mago", callback_data="Mago")
-]]
+    kb = [[InlineKeyboardButton("🛡️ Guerreiro","Guerreiro"),InlineKeyboardButton("🏹 Arqueiro","Arqueiro")],[InlineKeyboardButton("🔮 Bruxa","Bruxa"),InlineKeyboardButton("🔥 Mago","Mago")]]
     try: await q.message.delete()
     except: pass
     await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["selecao_classes"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
@@ -467,7 +446,7 @@ async def finalizar(upd, ctx):
 # MAIN
 def main():
     init_db()
-    token = "8506567958:AAEKQHo-TsjW55WeKGwiqVvLYglEWQusxdg"
+    token = os.getenv("TELEGRAM_TOKEN")
     app = ApplicationBuilder().token(token).build()
     
     conv = ConversationHandler(
