@@ -422,7 +422,7 @@ async def start(upd, ctx):
         return ConversationHandler.END
     ctx.user_data.clear()
     cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nUm RPG épico!\nVersão: `{VERSAO}`\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🎮 Começar","ir_para_classes")]]
+    kb = [[InlineKeyboardButton("🎮 Começar", callback_data="ir_para_classes")]]
     await upd.message.reply_photo(IMAGENS["logo"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     return TELA_CLASSE
 
