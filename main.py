@@ -2,48 +2,40 @@ import os
 import random
 import sqlite3
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, InputFile
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
-import requests
-from io import BytesIO
 
-# Mude para 1.4.1 no GitHub e dê "Clear Cache & Deploy" no Render
-VERSAO = "1.4.1 - TeleTofus Style + Images FIX"
+# Mude para 1.5.0 no GitHub e dê "Clear Cache & Deploy" no Render
+VERSAO = "1.5.0 - TeleTofus Style + GitHub Images"
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 DB_FILE = "rpg_game.db"
 
 # ============================================
-# 🎨 CONFIGURAÇÃO DE IMAGENS
+# 🎨 CONFIGURAÇÃO DE IMAGENS - GITHUB (100% FUNCIONAL)
 # ============================================
-# Links diretos convertidos para .jpg (mais compatível com Telegram)
 IMAGENS = {
-    "logo": "https://i.imgur.com/CSQfV0e.jpg",
-    "selecao_classes": "https://i.imgur.com/3Te4WKB.jpg",
-    "menu_principal": "https://i.imgur.com/CiDf1LJ.jpg",
+    # Tela inicial/logo - Menu principal
+    "logo": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/WhatsApp%20Image%202026-02-15%20at%2009.06.10.jpeg?raw=true",
     
+    # Tela de seleção de classes (mostrando os 4 personagens)
+    "selecao_classes": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_l46bisl46bisl46b.png?raw=true",
+    
+    # Menu principal - Mapa da primeira área
+    "menu_principal": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_dxklz9dxklz9dxkl.png?raw=true",
+    
+    # Imagens individuais de cada classe
     "classes": {
-        "Guerreiro": "https://i.imgur.com/AkgDAFt.jpg",
-        "Arqueiro": "https://i.imgur.com/UN0nITy.jpg",
-        "Bruxa": "https://i.imgur.com/6KjoQ9Y.jpg",
-        "Mago": "https://i.imgur.com/5KZinwc.jpg"
+        "Guerreiro": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_n68a2ln68a2ln68a.png?raw=true",
+        "Arqueiro": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_o1dtmio1dtmio1dt.png?raw=true",
+        "Bruxa": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_fyofu7fyofu7fyof.png?raw=true",
+        "Mago": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_8nad348nad348nad.png?raw=true"
     }
 }
 
 # Estados
 TELA_CLASSE, TELA_NOME = range(2)
-
-# --- FUNÇÃO PARA BAIXAR IMAGEM ---
-def baixar_imagem(url):
-    """Baixa a imagem e retorna como BytesIO para o Telegram"""
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        return BytesIO(response.content)
-    except Exception as e:
-        logging.error(f"Erro ao baixar imagem {url}: {e}")
-        return None
 
 # --- BANCO DE DADOS ---
 def init_db():
@@ -82,6 +74,7 @@ async def exibir_status(update, context, uid, texto_combate=""):
     b_hp = gerar_barra(p['hp'], p['hp_max'], "🟥")
     b_xp = gerar_barra(p['exp'], p['lv'] * 100, "🟦")
 
+    # Layout TeleTofus
     caption = (
         f"🎮 **Versão:** `{VERSAO}`\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -95,6 +88,7 @@ async def exibir_status(update, context, uid, texto_combate=""):
         f"{texto_combate}"
     )
 
+    # Botões em Grade (2 por linha)
     keyboard = [
         [InlineKeyboardButton("⚔️ Caçar", callback_data='cacar'), InlineKeyboardButton("🗺️ Viajar", callback_data='v')],
         [InlineKeyboardButton("🎒 Mochila", callback_data='i'), InlineKeyboardButton("👤 Status", callback_data='p')],
@@ -102,7 +96,8 @@ async def exibir_status(update, context, uid, texto_combate=""):
         [InlineKeyboardButton("⚙️ Ajustes", callback_data='s')]
     ]
 
-    imagem_url = get_imagem_personagem(p['classe'])
+    # Usa a imagem do personagem específico
+    imagem_personagem = get_imagem_personagem(p['classe'])
 
     if update.callback_query:
         try:
@@ -113,39 +108,20 @@ async def exibir_status(update, context, uid, texto_combate=""):
             )
         except:
             await update.callback_query.message.delete()
-            # Baixa e envia a imagem
-            imagem_data = baixar_imagem(imagem_url)
-            if imagem_data:
-                await context.bot.send_photo(
-                    chat_id=update.effective_chat.id,
-                    photo=imagem_data,
-                    caption=caption, 
-                    reply_markup=InlineKeyboardMarkup(keyboard), 
-                    parse_mode='Markdown'
-                )
-            else:
-                # Fallback sem imagem
-                await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text=caption,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode='Markdown'
-                )
-    else:
-        imagem_data = baixar_imagem(imagem_url)
-        if imagem_data:
-            await update.message.reply_photo(
-                photo=imagem_data, 
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=imagem_personagem,
                 caption=caption, 
                 reply_markup=InlineKeyboardMarkup(keyboard), 
                 parse_mode='Markdown'
             )
-        else:
-            await update.message.reply_text(
-                text=caption,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
+    else:
+        await update.message.reply_photo(
+            photo=imagem_personagem, 
+            caption=caption, 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode='Markdown'
+        )
 
 # --- HANDLER PARA VER PERFIL ---
 async def ver_perfil(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -178,22 +154,20 @@ async def ver_perfil(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     keyboard = [[InlineKeyboardButton("🔙 Voltar", callback_data='voltar_menu')]]
-    imagem_url = get_imagem_personagem(p['classe'])
+    imagem_personagem = get_imagem_personagem(p['classe'])
 
     try:
         await query.message.delete()
-        imagem_data = baixar_imagem(imagem_url)
-        if imagem_data:
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
-                photo=imagem_data,
-                caption=caption,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=imagem_personagem,
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
     except:
-        await query.edit_message_text(
-            text=caption,
+        await query.edit_message_caption(
+            caption=caption,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
@@ -221,22 +195,20 @@ async def ver_inventario(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     keyboard = [[InlineKeyboardButton("🔙 Voltar", callback_data='voltar_menu')]]
-    imagem_url = get_imagem_personagem(p['classe'])
+    imagem_personagem = get_imagem_personagem(p['classe'])
 
     try:
         await query.message.delete()
-        imagem_data = baixar_imagem(imagem_url)
-        if imagem_data:
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
-                photo=imagem_data,
-                caption=caption,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=imagem_personagem,
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
     except:
-        await query.edit_message_text(
-            text=caption,
+        await query.edit_message_caption(
+            caption=caption,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
@@ -283,7 +255,7 @@ async def cacar_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- FLUXO DE CRIAÇÃO ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Tela inicial com imagem de boas-vindas"""
+    """Tela inicial com imagem de menu principal"""
     context.user_data.clear()
     
     caption = (
@@ -296,22 +268,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     kb = [[InlineKeyboardButton("🎮 Começar Aventura", callback_data='ir_para_classes')]]
     
-    # Baixa e envia a imagem
-    imagem_data = baixar_imagem(IMAGENS["logo"])
-    if imagem_data:
-        await update.message.reply_photo(
-            photo=imagem_data,
-            caption=caption,
-            reply_markup=InlineKeyboardMarkup(kb), 
-            parse_mode='Markdown'
-        )
-    else:
-        await update.message.reply_text(
-            text=caption,
-            reply_markup=InlineKeyboardMarkup(kb),
-            parse_mode='Markdown'
-        )
-    
+    await update.message.reply_photo(
+        photo=IMAGENS["logo"],
+        caption=caption,
+        reply_markup=InlineKeyboardMarkup(kb), 
+        parse_mode='Markdown'
+    )
     return TELA_CLASSE
 
 async def menu_classes(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -338,22 +300,13 @@ async def menu_classes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         await query.message.delete()
-        imagem_data = baixar_imagem(IMAGENS["selecao_classes"])
-        if imagem_data:
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
-                photo=imagem_data,
-                caption=caption,
-                reply_markup=InlineKeyboardMarkup(kb),
-                parse_mode='Markdown'
-            )
-        else:
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text=caption,
-                reply_markup=InlineKeyboardMarkup(kb),
-                parse_mode='Markdown'
-            )
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=IMAGENS["selecao_classes"],
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode='Markdown'
+        )
     except Exception as e:
         logging.error(f"Erro ao enviar imagem de seleção: {e}")
         await query.edit_message_text(
@@ -371,7 +324,7 @@ async def salvar_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['classe'] = classe_escolhida
     await query.answer()
     
-    imagem_url = get_imagem_personagem(classe_escolhida)
+    imagem_classe = get_imagem_personagem(classe_escolhida)
     
     caption = (
         f"✅ **Classe {classe_escolhida.upper()} selecionada!**\n"
@@ -381,20 +334,12 @@ async def salvar_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         await query.message.delete()
-        imagem_data = baixar_imagem(imagem_url)
-        if imagem_data:
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
-                photo=imagem_data,
-                caption=caption,
-                parse_mode='Markdown'
-            )
-        else:
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text=caption,
-                parse_mode='Markdown'
-            )
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=imagem_classe,
+            caption=caption,
+            parse_mode='Markdown'
+        )
     except Exception as e:
         logging.error(f"Erro ao enviar imagem da classe: {e}")
         await query.edit_message_text(caption, parse_mode='Markdown')
