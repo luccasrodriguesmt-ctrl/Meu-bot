@@ -1,9 +1,33 @@
-import os, random, sqlite3, logging
+import os, random, sqlite3, logging, threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
-VERSAO = "2.0.1 - Sistema Completo FIXED"
+VERSAO = "2.0.2 - Sistema Completo + Render Fix"
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+# ============================================
+# 🌐 SERVIDOR HTTP FAKE PARA O RENDER
+# ============================================
+def run_fake_server():
+    """Servidor fake para o Render não matar o bot"""
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b"Bot esta vivo e funcionando!")
+        
+        def log_message(self, format, *args):
+            pass  # Silencia logs do servidor
+    
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(('0.0.0.0', port), Handler)
+    logging.info(f"Servidor HTTP rodando na porta {port}")
+    server.serve_forever()
+
+# Inicia o servidor em background
+threading.Thread(target=run_fake_server, daemon=True).start()
 DB_FILE = "rpg_game.db"
 
 # IMAGENS
