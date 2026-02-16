@@ -430,7 +430,13 @@ async def menu_classes(upd, ctx):
     q = upd.callback_query
     await q.answer()
     cap = f"🎭 **ESCOLHA SUA CLASSE**\n{'━'*20}\n🛡️ **Guerreiro** - Forte\n🏹 **Arqueiro** - Ágil\n🔮 **Bruxa** - Sábia\n🔥 **Mago** - Poderoso\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🛡️ Guerreiro","Guerreiro"),InlineKeyboardButton("🏹 Arqueiro","Arqueiro")],[InlineKeyboardButton("🔮 Bruxa","Bruxa"),InlineKeyboardButton("🔥 Mago","Mago")]]
+   kb = [[
+    InlineKeyboardButton("🛡️ Guerreiro", callback_data="Guerreiro"),
+    InlineKeyboardButton("🏹 Arqueiro", callback_data="Arqueiro")
+], [
+    InlineKeyboardButton("🔮 Bruxa", callback_data="Bruxa"),
+    InlineKeyboardButton("🔥 Mago", callback_data="Mago")
+]]
     try: await q.message.delete()
     except: pass
     await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["selecao_classes"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
