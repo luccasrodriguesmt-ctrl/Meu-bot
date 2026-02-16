@@ -5,32 +5,32 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
-# Mude para 1.3.0 no GitHub e dê "Clear Cache & Deploy" no Render
-VERSAO = "1.3.0 - TeleTofus Style + Images"
+# Mude para 1.4.0 no GitHub e dê "Clear Cache & Deploy" no Render
+VERSAO = "1.4.0 - TeleTofus Style + Images COMPLETO"
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 DB_FILE = "rpg_game.db"
 
 # ============================================
-# 🎨 CONFIGURAÇÃO DE IMAGENS - COMPLETO ✅
+# 🎨 CONFIGURAÇÃO DE IMAGENS - LINKS CORRETOS ✅
 # ============================================
 IMAGENS = {
-    # Tela inicial/logo - Começar Aventura
-    "logo": "https://i.imgur.com/3I4d2kX.jpeg",  # ✅ Imagem de início do game
+    # Tela inicial/logo - Boas vindas
+    "logo": "https://i.imgur.com/CSQfV0e.png",
     
     # Tela de seleção de classes (mostrando os 4 personagens)
-    "selecao_classes": "https://i.imgur.com/Uxktsg8.jpeg",  # ✅ Todos os 4 personagens
+    "selecao_classes": "https://i.imgur.com/3Te4WKB.png",
     
     # Menu principal - Paisagem do primeiro mapa
-    "menu_principal": "https://i.imgur.com/UHSPqN2.jpeg",  # ✅ Paisagem do mapa
+    "menu_principal": "https://i.imgur.com/CiDf1LJ.png",
     
     # Imagens individuais de cada classe
     "classes": {
-        "Guerreiro": "https://i.imgur.com/AkgDAFt.jpeg",   # ✅ Guerreiro
-        "Arqueiro": "https://i.imgur.com/UN0nITy.jpeg",    # ✅ Arqueira
-        "Bruxa": "https://i.imgur.com/6KjoQ9Y.jpeg",       # ✅ Bruxa
-        "Mago": "https://i.imgur.com/z0D8G82.jpeg"         # ✅ Mago - CORRIGIDO!
+        "Guerreiro": "https://i.imgur.com/AkgDAFt.png",
+        "Arqueiro": "https://i.imgur.com/UN0nITy.png",
+        "Bruxa": "https://i.imgur.com/6KjoQ9Y.png",
+        "Mago": "https://i.imgur.com/5KZinwc.png"
     }
 }
 
@@ -100,7 +100,6 @@ async def exibir_status(update, context, uid, texto_combate=""):
     imagem_personagem = get_imagem_personagem(p['classe'])
 
     if update.callback_query:
-        # Se for um callback, edita a mensagem
         try:
             await update.callback_query.edit_message_caption(
                 caption=caption, 
@@ -108,7 +107,6 @@ async def exibir_status(update, context, uid, texto_combate=""):
                 parse_mode='Markdown'
             )
         except:
-            # Se não conseguir editar (imagem diferente), deleta e envia nova
             await update.callback_query.message.delete()
             await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
@@ -125,7 +123,7 @@ async def exibir_status(update, context, uid, texto_combate=""):
             parse_mode='Markdown'
         )
 
-# --- HANDLER PARA VER PERFIL (COM IMAGEM DO PERSONAGEM) ---
+# --- HANDLER PARA VER PERFIL ---
 async def ver_perfil(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     uid = update.effective_user.id
@@ -156,8 +154,6 @@ async def ver_perfil(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     keyboard = [[InlineKeyboardButton("🔙 Voltar", callback_data='voltar_menu')]]
-    
-    # Usa a imagem específica do personagem
     imagem_personagem = get_imagem_personagem(p['classe'])
 
     try:
@@ -176,7 +172,7 @@ async def ver_perfil(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
 
-# --- HANDLER PARA INVENTÁRIO (COM IMAGEM DO PERSONAGEM) ---
+# --- HANDLER PARA INVENTÁRIO ---
 async def ver_inventario(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     uid = update.effective_user.id
@@ -199,8 +195,6 @@ async def ver_inventario(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     keyboard = [[InlineKeyboardButton("🔙 Voltar", callback_data='voltar_menu')]]
-    
-    # Usa a imagem específica do personagem
     imagem_personagem = get_imagem_personagem(p['classe'])
 
     try:
@@ -240,7 +234,6 @@ async def cacar_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("🪫 Sem energia!", show_alert=True)
         return
 
-    # Lógica de Ganho
     dano = random.randint(5, 15)
     ouro = random.randint(10, 25)
     xp_ganho = 20
@@ -262,7 +255,7 @@ async def cacar_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- FLUXO DE CRIAÇÃO ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Tela inicial com imagem de início do game"""
+    """Tela inicial com imagem de boas-vindas"""
     context.user_data.clear()
     
     caption = (
@@ -284,7 +277,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return TELA_CLASSE
 
 async def menu_classes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Tela de seleção com imagem dos 4 personagens"""
+    """Tela de seleção com os 4 personagens"""
     query = update.callback_query
     await query.answer()
     
@@ -305,7 +298,6 @@ async def menu_classes(update: Update, context: ContextTypes.DEFAULT_TYPE):
          InlineKeyboardButton("🔥 Mago", callback_data='Mago')]
     ]
     
-    # Usa a imagem com os 4 personagens
     try:
         await query.message.delete()
         await context.bot.send_photo(
@@ -315,7 +307,8 @@ async def menu_classes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(kb),
             parse_mode='Markdown'
         )
-    except:
+    except Exception as e:
+        logging.error(f"Erro ao enviar imagem de seleção: {e}")
         await query.edit_message_text(
             text=caption,
             reply_markup=InlineKeyboardMarkup(kb),
@@ -331,7 +324,6 @@ async def salvar_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['classe'] = classe_escolhida
     await query.answer()
     
-    # Mostra a imagem do personagem escolhido
     imagem_classe = get_imagem_personagem(classe_escolhida)
     
     caption = (
@@ -348,13 +340,14 @@ async def salvar_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption=caption,
             parse_mode='Markdown'
         )
-    except:
+    except Exception as e:
+        logging.error(f"Erro ao enviar imagem da classe: {e}")
         await query.edit_message_text(caption, parse_mode='Markdown')
     
     return TELA_NOME
 
 async def finalizar_e_ir_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Cria o personagem e vai pro menu principal"""
+    """Cria o personagem e vai pro menu"""
     uid = update.effective_user.id
     nome = update.message.text
     classe = context.user_data.get('classe', 'Guerreiro')
