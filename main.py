@@ -46,7 +46,6 @@ INIMIGOS = {
     # MAPA 2 - Floresta
     "Orc": {"hp": 80, "atk": 20, "def": 8, "xp": 80, "gold": 60, "m": [2]},
     "Aranha Gigante": {"hp": 70, "atk": 25, "def": 5, "xp": 75, "gold": 50, "m": [2]},
-    "Ent": {"hp": 120, "atk": 15, "def": 12, "xp": 100, "gold": 70, "m": [2]},
     "Bandido": {"hp": 65, "atk": 18, "def": 6, "xp": 60, "gold": 100, "m": [2]},
 
     # MAPA 3 - Caverna
@@ -56,11 +55,11 @@ INIMIGOS = {
     "Dragão": {"hp": 300, "atk": 50, "def": 20, "xp": 500, "gold": 1000, "m": [3]},
     "Demônio": {"hp": 250, "atk": 60, "def": 18, "xp": 450, "gold": 800, "m": [3]}
 }
-}
 
 DUNGEONS = [
     {"nome": "Covil Goblin", "lv": 5, "boss": "Rei Goblin", "bhp": 100, "batk": 20, "xp": 200, "g": 150},
-    {"nome": "Ninho Lobos", "lv": 10, "boss": "Lobo Alpha", "bhp": 150, "batk": 30, "xp": 400, "g": 300}
+    {"nome": "Ninho de Lobos", "lv": 10, "boss": "Lobo Alpha", "bhp": 150, "batk": 30, "xp": 400, "g": 300},
+    {"nome": "Templo Esquecido", "lv": 15, "boss": "Sacerdote Sombrio", "bhp": 250, "batk": 45, "xp": 800, "g": 600}
 ]
 
 EQUIPS = {
