@@ -126,9 +126,9 @@ def adicionar_item(uid, item, qtd=1):
     conn.close()
 
 # UTILS
-def barra(atual, max, cor="🟦"):
-    if max <= 0: return "⬜"*10
-    p = max(0, min(atual/max, 1))
+def barra(atual, total, cor="🟦"):
+    if total <= 0: return "⬜"*10
+    p = max(0, min(atual/total, 1))
     return cor*int(p*10) + "⬜"*(10-int(p*10))
 
 def img_classe(c):
@@ -145,7 +145,7 @@ async def menu(upd, ctx, uid, txt=""):
     p = get_player(uid)
     if not p: return
     mapa = MAPAS.get(p['mapa_atual'], {}).get('nome', '?')
-    cap = f"🎮 **{VERSAO}**\n{'━'*20}\n👤 **{p['nome']}** — *{p['classe']} Lv. {p['lv']}*\n🗺️ **Local:** {mapa}\n\n❤️ **HP:** {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n\n✨ **XP:** {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100)}\n\n⚔️ **ATK:** {atk_total(p)} | 🛡️ **DEF:** {def_total(p)}\n💰 **Gold:** `{p['gold']}` | ⚡ **Energy:** `{p['energia']}/{p['energia_max']}`\n{'━'*20}\n{txt}"
+    cap = f"🎮 **{VERSAO}**\n{'━'*20}\n👤 **{p['nome']}** — *{p['classe']} Lv. {p['lv']}*\n🗺️ **Local:** {mapa}\n\n❤️ **HP:** {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n\n✨ **XP:** {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100,'🟦')}\n\n⚔️ **ATK:** {atk_total(p)} | 🛡️ **DEF:** {def_total(p)}\n💰 **Gold:** `{p['gold']}` | ⚡ **Energy:** `{p['energia']}/{p['energia_max']}`\n{'━'*20}\n{txt}"
     kb = [[InlineKeyboardButton("⚔️ Caçar",callback_data="cacar"),InlineKeyboardButton("🗺️ Mapas",callback_data="mapas")],[InlineKeyboardButton("🎒 Mochila",callback_data="inventario"),InlineKeyboardButton("👤 Status",callback_data="perfil")],[InlineKeyboardButton("🏪 Loja",callback_data="loja"),InlineKeyboardButton("🏰 Dungeons",callback_data="dungeons")],[InlineKeyboardButton("⚙️ Config",callback_data="config")]]
     img = img_classe(p['classe'])
     if upd.callback_query:
@@ -290,7 +290,7 @@ async def perfil(upd, ctx):
     uid = upd.effective_user.id
     p = get_player(uid)
     await q.answer()
-    cap = f"👤 **PERFIL**\n{'━'*20}\n📛 {p['nome']}\n🎭 {p['classe']}\n⭐ Level {p['lv']}\n\n❤️ HP: {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n\n✨ XP: {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100)}\n\n💰 Ouro: {p['gold']}\n⚡ Energia: {p['energia']}/{p['energia_max']}\n⚔️ Ataque: {atk_total(p)}\n🛡️ Defesa: {def_total(p)}\n{'━'*20}"
+    cap = f"👤 **PERFIL**\n{'━'*20}\n📛 {p['nome']}\n🎭 {p['classe']}\n⭐ Level {p['lv']}\n\n❤️ HP: {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n\n✨ XP: {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100,'🟦')}\n\n💰 Ouro: {p['gold']}\n⚡ Energia: {p['energia']}/{p['energia_max']}\n⚔️ Ataque: {atk_total(p)}\n🛡️ Defesa: {def_total(p)}\n{'━'*20}"
     kb = [[InlineKeyboardButton("🔙 Voltar",callback_data="voltar_menu")]]
     try: await q.message.delete()
     except: pass
