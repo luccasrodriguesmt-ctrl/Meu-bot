@@ -449,7 +449,7 @@ async def finalizar(upd, ctx):
 # MAIN
 def main():
     init_db()
-    token = os.getenv("TELEGRAM_TOKEN")
+    token = "8506567958:AAEKQHo-TsjW55WeKGwiqVvLYglEWQusxdg"
     app = ApplicationBuilder().token(token).build()
     
     conv = ConversationHandler(
