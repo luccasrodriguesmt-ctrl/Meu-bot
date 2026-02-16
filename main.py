@@ -5,13 +5,34 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
-# Mude para 1.2.3 no GitHub e dê "Clear Cache & Deploy" no Render
-VERSAO = "1.2.3 - TeleTofus Style"
+# Mude para 1.3.0 no GitHub e dê "Clear Cache & Deploy" no Render
+VERSAO = "1.3.0 - TeleTofus Style + Images"
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 DB_FILE = "rpg_game.db"
-IMG_MENU = "https://i.imgur.com/uP6M8fL.jpeg" 
+
+# ============================================
+# 🎨 CONFIGURAÇÃO DE IMAGENS - COMPLETO ✅
+# ============================================
+IMAGENS = {
+    # Tela inicial/logo - Começar Aventura
+    "logo": "https://i.imgur.com/3I4d2kX.jpeg",  # ✅ Imagem de início do game
+    
+    # Tela de seleção de classes (mostrando os 4 personagens)
+    "selecao_classes": "https://i.imgur.com/Uxktsg8.jpeg",  # ✅ Todos os 4 personagens
+    
+    # Menu principal - Paisagem do primeiro mapa
+    "menu_principal": "https://i.imgur.com/UHSPqN2.jpeg",  # ✅ Paisagem do mapa
+    
+    # Imagens individuais de cada classe
+    "classes": {
+        "Guerreiro": "https://i.imgur.com/AkgDAFt.jpeg",   # ✅ Guerreiro
+        "Arqueiro": "https://i.imgur.com/UN0nITy.jpeg",    # ✅ Arqueira
+        "Bruxa": "https://i.imgur.com/6KjoQ9Y.jpeg",       # ✅ Bruxa
+        "Mago": "https://i.imgur.com/z0D8G82.jpeg"         # ✅ Mago - CORRIGIDO!
+    }
+}
 
 # Estados
 TELA_CLASSE, TELA_NOME = range(2)
@@ -39,6 +60,11 @@ def gerar_barra(atual, maximo, cor="🟦"):
     percent = max(0, min(atual / maximo, 1))
     preenchido = int(percent * 10)
     return cor * preenchido + "⬜" * (10 - preenchido)
+
+# --- FUNÇÃO AUXILIAR PARA PEGAR IMAGEM DO PERSONAGEM ---
+def get_imagem_personagem(classe):
+    """Retorna a imagem específica da classe do jogador"""
+    return IMAGENS["classes"].get(classe, IMAGENS["menu_principal"])
 
 # --- INTERFACE PRINCIPAL ---
 async def exibir_status(update, context, uid, texto_combate=""):
@@ -70,22 +96,137 @@ async def exibir_status(update, context, uid, texto_combate=""):
         [InlineKeyboardButton("⚙️ Ajustes", callback_data='s')]
     ]
 
+    # Usa a imagem do personagem específico
+    imagem_personagem = get_imagem_personagem(p['classe'])
+
     if update.callback_query:
-        # Se for um combate, o ideal é editar apenas o texto e manter a imagem
-        await update.callback_query.edit_message_caption(
-            caption=caption, 
-            reply_markup=InlineKeyboardMarkup(keyboard), 
-            parse_mode='Markdown'
-        )
+        # Se for um callback, edita a mensagem
+        try:
+            await update.callback_query.edit_message_caption(
+                caption=caption, 
+                reply_markup=InlineKeyboardMarkup(keyboard), 
+                parse_mode='Markdown'
+            )
+        except:
+            # Se não conseguir editar (imagem diferente), deleta e envia nova
+            await update.callback_query.message.delete()
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=imagem_personagem,
+                caption=caption, 
+                reply_markup=InlineKeyboardMarkup(keyboard), 
+                parse_mode='Markdown'
+            )
     else:
         await update.message.reply_photo(
-            photo=IMG_MENU, 
+            photo=imagem_personagem, 
             caption=caption, 
             reply_markup=InlineKeyboardMarkup(keyboard), 
             parse_mode='Markdown'
         )
 
-# --- SISTEMA DE COMBATE (CORRIGIDO) ---
+# --- HANDLER PARA VER PERFIL (COM IMAGEM DO PERSONAGEM) ---
+async def ver_perfil(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    uid = update.effective_user.id
+    p = get_player(uid)
+
+    if not p:
+        await query.answer("Crie sua conta primeiro com /start", show_alert=True)
+        return
+
+    await query.answer()
+
+    b_hp = gerar_barra(p['hp'], p['hp_max'], "🟥")
+    b_xp = gerar_barra(p['exp'], p['lv'] * 100, "🟦")
+
+    caption = (
+        f"👤 **PERFIL DO HERÓI**\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📛 **Nome:** {p['nome']}\n"
+        f"🎭 **Classe:** {p['classe']}\n"
+        f"⭐ **Level:** {p['lv']}\n\n"
+        f"❤️ **HP:** {p['hp']}/{p['hp_max']}\n"
+        f"└ {b_hp}\n\n"
+        f"✨ **XP:** {p['exp']}/{p['lv']*100}\n"
+        f"└ {b_xp}\n\n"
+        f"💰 **Ouro:** {p['gold']}\n"
+        f"⚡ **Energia:** {p['energia']}/{p['energia_max']}\n"
+        f"━━━━━━━━━━━━━━━━━━━━"
+    )
+
+    keyboard = [[InlineKeyboardButton("🔙 Voltar", callback_data='voltar_menu')]]
+    
+    # Usa a imagem específica do personagem
+    imagem_personagem = get_imagem_personagem(p['classe'])
+
+    try:
+        await query.message.delete()
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=imagem_personagem,
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+    except:
+        await query.edit_message_caption(
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+
+# --- HANDLER PARA INVENTÁRIO (COM IMAGEM DO PERSONAGEM) ---
+async def ver_inventario(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    uid = update.effective_user.id
+    p = get_player(uid)
+
+    if not p:
+        await query.answer("Crie sua conta primeiro com /start", show_alert=True)
+        return
+
+    await query.answer()
+
+    caption = (
+        f"🎒 **MOCHILA DE {p['nome'].upper()}**\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"💰 **Ouro:** {p['gold']}\n"
+        f"⚡ **Energia:** {p['energia']}/{p['energia_max']}\n\n"
+        f"📦 **Itens:**\n"
+        f"└ _Em breve: sistema de itens_\n"
+        f"━━━━━━━━━━━━━━━━━━━━"
+    )
+
+    keyboard = [[InlineKeyboardButton("🔙 Voltar", callback_data='voltar_menu')]]
+    
+    # Usa a imagem específica do personagem
+    imagem_personagem = get_imagem_personagem(p['classe'])
+
+    try:
+        await query.message.delete()
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=imagem_personagem,
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+    except:
+        await query.edit_message_caption(
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+
+# --- VOLTAR AO MENU ---
+async def voltar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    uid = update.effective_user.id
+    await exibir_status(update, context, uid)
+
+# --- SISTEMA DE COMBATE ---
 async def cacar_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     uid = update.effective_user.id
@@ -121,39 +262,110 @@ async def cacar_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- FLUXO DE CRIAÇÃO ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Tela inicial com imagem de início do game"""
     context.user_data.clear()
+    
+    caption = (
+        f"✨ **AVENTURA RABISCADA** ✨\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"Um RPG de aventuras épicas!\n\n"
+        f"Versão: `{VERSAO}`\n"
+        f"━━━━━━━━━━━━━━━━━━━━"
+    )
+    
     kb = [[InlineKeyboardButton("🎮 Começar Aventura", callback_data='ir_para_classes')]]
-    await update.message.reply_text(f"✨ **Aventura Rabiscada**\nVersão `{VERSAO}`", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    
+    await update.message.reply_photo(
+        photo=IMAGENS["logo"],
+        caption=caption,
+        reply_markup=InlineKeyboardMarkup(kb), 
+        parse_mode='Markdown'
+    )
     return TELA_CLASSE
 
 async def menu_classes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Tela de seleção com imagem dos 4 personagens"""
     query = update.callback_query
     await query.answer()
+    
+    caption = (
+        f"🎭 **ESCOLHA SUA CLASSE**\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🛡️ **Guerreiro** - Forte e resistente\n"
+        f"🏹 **Arqueiro** - Ágil e preciso\n"
+        f"🔮 **Bruxa** - Misteriosa e sábia\n"
+        f"🔥 **Mago** - Poder elemental\n"
+        f"━━━━━━━━━━━━━━━━━━━━"
+    )
+    
     kb = [
-        [InlineKeyboardButton("🛡️ Guerreiro", callback_data='Guerreiro'), InlineKeyboardButton("🏹 Arqueiro", callback_data='Arqueiro')],
-        [InlineKeyboardButton("🔮 Bruxa", callback_data='Bruxa'), InlineKeyboardButton("🔥 Mago", callback_data='Mago')]
+        [InlineKeyboardButton("🛡️ Guerreiro", callback_data='Guerreiro'), 
+         InlineKeyboardButton("🏹 Arqueiro", callback_data='Arqueiro')],
+        [InlineKeyboardButton("🔮 Bruxa", callback_data='Bruxa'), 
+         InlineKeyboardButton("🔥 Mago", callback_data='Mago')]
     ]
-    await query.edit_message_text("🎭 **Escolha sua classe:**", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    
+    # Usa a imagem com os 4 personagens
+    try:
+        await query.message.delete()
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=IMAGENS["selecao_classes"],
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode='Markdown'
+        )
+    except:
+        await query.edit_message_text(
+            text=caption,
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode='Markdown'
+        )
+    
     return TELA_NOME
 
 async def salvar_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Salva a classe e pede o nome"""
     query = update.callback_query
-    context.user_data['classe'] = query.data
+    classe_escolhida = query.data
+    context.user_data['classe'] = classe_escolhida
     await query.answer()
-    await query.edit_message_text(f"✅ Classe **{query.data}** selecionada!\n\nAgora, digite o **nome** do seu herói:")
-    return TELA_NOME # Agora espera o texto
+    
+    # Mostra a imagem do personagem escolhido
+    imagem_classe = get_imagem_personagem(classe_escolhida)
+    
+    caption = (
+        f"✅ **Classe {classe_escolhida.upper()} selecionada!**\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"Agora, digite o **nome** do seu herói:"
+    )
+    
+    try:
+        await query.message.delete()
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=imagem_classe,
+            caption=caption,
+            parse_mode='Markdown'
+        )
+    except:
+        await query.edit_message_text(caption, parse_mode='Markdown')
+    
+    return TELA_NOME
 
 async def finalizar_e_ir_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cria o personagem e vai pro menu principal"""
     uid = update.effective_user.id
     nome = update.message.text
     classe = context.user_data.get('classe', 'Guerreiro')
 
     conn = sqlite3.connect(DB_FILE)
-    conn.execute("INSERT OR REPLACE INTO players VALUES (?, ?, ?, 100, 100, 1, 0, 100, 20, 20)", (uid, nome, classe))
+    conn.execute("INSERT OR REPLACE INTO players VALUES (?, ?, ?, 100, 100, 1, 0, 100, 20, 20)", 
+                 (uid, nome, classe))
     conn.commit()
     conn.close()
 
-    await update.message.reply_text("✨ Personagem criado!")
+    await update.message.reply_text(f"✨ **{nome}** foi criado com sucesso!")
     await exibir_status(update, context, uid)
     return ConversationHandler.END
 
@@ -177,6 +389,9 @@ def main():
 
     app.add_handler(conv)
     app.add_handler(CallbackQueryHandler(cacar_handler, pattern='^cacar$'))
+    app.add_handler(CallbackQueryHandler(ver_perfil, pattern='^p$'))
+    app.add_handler(CallbackQueryHandler(ver_inventario, pattern='^i$'))
+    app.add_handler(CallbackQueryHandler(voltar_menu, pattern='^voltar_menu$'))
     
     app.run_polling(drop_pending_updates=True)
 
