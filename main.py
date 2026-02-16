@@ -114,9 +114,9 @@ def adicionar_item(uid, item, qtd=1):
     conn.close()
 
 # UTILS
-def barra(atual, max, cor="🟦"):
-    if max <= 0: return "⬜"*10
-    p = max(0, min(atual/max, 1))
+def barra(atual, total, cor="🟦"):
+    if total <= 0: return "⬜"*10
+    p = max(0, min(atual/total, 1))
     return cor*int(p*10) + "⬜"*(10-int(p*10))
 
 def img_classe(c):
