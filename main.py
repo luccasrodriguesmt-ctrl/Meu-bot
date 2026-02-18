@@ -3,7 +3,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
-VERSAO = "3.1.0 - Sistema Avançado"
+VERSAO = "3.2.0"
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def run_fake_server():
@@ -378,13 +378,13 @@ async def menu(upd, ctx, uid, txt=""):
     
     kb = [[InlineKeyboardButton("⚔️ Caçar",callback_data="cacar"),InlineKeyboardButton("🗺️ Mapas",callback_data="mapas")],[InlineKeyboardButton("🏘️ Locais",callback_data="locais"),InlineKeyboardButton("👤 Status",callback_data="perfil")],[InlineKeyboardButton("🏪 Loja",callback_data="loja"),InlineKeyboardButton("🎒 Inventário",callback_data="inv")],[InlineKeyboardButton("🏰 Dungeons",callback_data="dungs"),InlineKeyboardButton("⚙️ Config",callback_data="cfg")]]
     img = img_c(p['classe'])
+    
     if upd.callback_query:
         try:
-            await upd.callback_query.edit_message_caption(caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+            await upd.callback_query.message.delete()
         except:
-            try: await upd.callback_query.message.delete()
-            except: pass
-            await ctx.bot.send_photo(upd.effective_chat.id, img, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+            pass
+        await ctx.bot.send_photo(upd.effective_chat.id, img, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     else:
         await upd.message.reply_photo(img, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
@@ -494,7 +494,14 @@ async def heroi_aceitar(upd, ctx):
     conn.commit()
     conn.close()
     
-    await q.answer(f"⭐ {h_oferta['heroi_nome']} se junta a você!", show_alert=True)
+    await q.answer()
+    
+    # Deletar mensagem do herói antes de mostrar combate
+    try:
+        await q.message.delete()
+    except:
+        pass
+    
     await mostrar_combate(upd, ctx, uid)
 
 async def heroi_recusar(upd, ctx):
@@ -517,7 +524,14 @@ async def heroi_recusar(upd, ctx):
     conn.commit()
     conn.close()
     
-    await q.answer("Você recusou a ajuda!", show_alert=True)
+    await q.answer()
+    
+    # Deletar mensagem do herói antes de mostrar combate
+    try:
+        await q.message.delete()
+    except:
+        pass
+    
     await mostrar_combate(upd, ctx, uid)
 
 async def mostrar_combate(upd, ctx, uid):
@@ -585,32 +599,33 @@ async def mostrar_combate(upd, ctx, uid):
         if tipo in IMAGENS["monstros"] and mapa in IMAGENS["monstros"][tipo]:
             img_monstro = IMAGENS["monstros"][tipo][mapa]
     
-    # Verificar se é turno 1 (primeiro turno = nova mensagem)
-    # Ou se for callback de ação de combate (atacar, defender, etc) = editar
-    if upd.callback_query and cb['turno'] > 1:
-        # Tentar editar a mensagem existente (apenas se não for turno 1)
-        try:
-            await upd.callback_query.edit_message_caption(
-                caption=cap, 
-                reply_markup=InlineKeyboardMarkup(kb), 
-                parse_mode='Markdown'
-            )
-            return
-        except:
-            # Se falhar ao editar, deletar e criar nova
-            try: 
-                await upd.callback_query.message.delete()
-            except: 
-                pass
-    elif upd.callback_query:
-        # Turno 1 ou iniciando combate - deletar menu anterior e criar nova mensagem
-        try:
-            await upd.callback_query.message.delete()
-        except:
-            pass
+    # LÓGICA SIMPLIFICADA:
+    # Turno 1 = sempre criar nova mensagem
+    # Turno 2+ = sempre tentar editar, se falhar criar nova
     
-    # Criar nova mensagem com imagem do monstro específico
-    await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    if cb['turno'] == 1:
+        # Primeiro turno - sempre criar nova mensagem
+        # Não há mensagem anterior de combate para editar
+        await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    else:
+        # Turnos seguintes - tentar editar a mensagem de combate existente
+        if upd.callback_query:
+            try:
+                await upd.callback_query.edit_message_caption(
+                    caption=cap, 
+                    reply_markup=InlineKeyboardMarkup(kb), 
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                # Se falhar (mensagem muito antiga, etc), criar nova
+                try:
+                    await upd.callback_query.message.delete()
+                except:
+                    pass
+                await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        else:
+            # Não é callback, criar nova
+            await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
 async def bat_heroi(upd, ctx):
     q = upd.callback_query
@@ -938,8 +953,16 @@ async def viajar(upd, ctx):
     conn.execute("UPDATE players SET mapa=?,local='cap' WHERE id=?", (mid,uid))
     conn.commit()
     conn.close()
+    
     await q.answer(f"🗺️ {m['nome']}!")
-    await menu(upd, ctx, uid, f"🗺️ **{m['nome']}!**")
+    
+    # Deletar mensagem antiga e mostrar menu com nova imagem
+    try:
+        await q.message.delete()
+    except:
+        pass
+    
+    await menu(upd, ctx, uid, f"🗺️ **Viajou para {m['nome']}!**")
 
 async def locais(upd, ctx):
     q = upd.callback_query
