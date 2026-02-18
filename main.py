@@ -402,7 +402,7 @@ async def cacar(upd, ctx):
     # Verificar se já está em combate
     cb = get_combate(uid)
     if cb:
-        await q.answer("⚔️ Já em combate!")
+        await q.answer()
         await mostrar_combate(upd, ctx, uid)
         return
     
@@ -432,6 +432,7 @@ async def cacar(upd, ctx):
             conn.close()
             
             # Mostrar tela de oferta do herói
+            await q.answer()
             await mostrar_oferta_heroi(upd, ctx, uid, heroi)
             return
     
@@ -444,7 +445,8 @@ async def cacar(upd, ctx):
     conn.commit()
     conn.close()
     
-    await q.answer("⚔️ Combate iniciado!")
+    # Responder callback e mostrar combate
+    await q.answer()
     await mostrar_combate(upd, ctx, uid)
 
 async def mostrar_oferta_heroi(upd, ctx, uid, heroi):
@@ -583,8 +585,10 @@ async def mostrar_combate(upd, ctx, uid):
         if tipo in IMAGENS["monstros"] and mapa in IMAGENS["monstros"][tipo]:
             img_monstro = IMAGENS["monstros"][tipo][mapa]
     
-    # Se for callback query, tentar editar a mensagem existente
-    if upd.callback_query:
+    # Verificar se é turno 1 (primeiro turno = nova mensagem)
+    # Ou se for callback de ação de combate (atacar, defender, etc) = editar
+    if upd.callback_query and cb['turno'] > 1:
+        # Tentar editar a mensagem existente (apenas se não for turno 1)
         try:
             await upd.callback_query.edit_message_caption(
                 caption=cap, 
@@ -598,6 +602,12 @@ async def mostrar_combate(upd, ctx, uid):
                 await upd.callback_query.message.delete()
             except: 
                 pass
+    elif upd.callback_query:
+        # Turno 1 ou iniciando combate - deletar menu anterior e criar nova mensagem
+        try:
+            await upd.callback_query.message.delete()
+        except:
+            pass
     
     # Criar nova mensagem com imagem do monstro específico
     await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
