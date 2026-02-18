@@ -3,7 +3,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
-VERSAO = "3.1.0"
+VERSAO = "3.0.0 - Sistema Avançado"
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def run_fake_server():
@@ -77,12 +77,39 @@ IMAGENS = {
         "Elixir de Mana": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/po%C3%A7ao%20amarela.jpeg?raw=true"
     },
     "herois": {
-        "heroi1": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/guerreiro.jpeg?raw=true",  # Inghost - ADICIONAR URL própria
-        "heroi2": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/arqueira.jpeg?raw=true",  # GabrielMinaRrj - ADICIONAR URL própria
-        "heroi3": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/bruxa.jpeg?raw=true",     # GuntherZuri - ADICIONAR URL própria
-        "heroi4": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/mago.jpeg?raw=true",      # Edu345jamampiro - ADICIONAR URL própria
-        "heroi5": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/guerreiro.jpeg?raw=true", # MrKiigsmann - ADICIONAR URL própria
-        "heroi6": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/arqueira.jpeg?raw=true"   # X__MATHEUSS_X - ADICIONAR URL própria
+        "heroi1": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/inghost.jpeg?raw=true",
+        "heroi2": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/biel.jpeg?raw=true",
+        "heroi3": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/zuri.jpeg?raw=true",
+        "heroi4": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/edu.jpeg?raw=true",
+        "heroi5": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/fabio.jpeg?raw=true",
+        "heroi6": "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/mateus.jpeg?raw=true"
+    },
+    "monstros": {
+        "Goblin": {
+            1: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/goblin%2001.jpeg?raw=true",
+            2: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/goblin%2002.jpeg?raw=true",
+            3: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/globin%2003.jpeg?raw=true"
+        },
+        "Lobo": {
+            1: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/lobo%2001.jpeg?raw=true",
+            2: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/lobo%2002.jpeg?raw=true",
+            3: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/lobo%2003.jpeg?raw=true"
+        },
+        "Orc": {
+            1: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/orc%2001.jpeg?raw=true",
+            2: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/orc%2002.jpeg?raw=true",
+            3: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/orc%2003.jpeg?raw=true"
+        },
+        "Esqueleto": {
+            1: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/esc%2001.jpeg?raw=true",
+            2: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/esc%2002.jpeg?raw=true",
+            3: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/esc%2003.jpeg?raw=true"
+        },
+        "Dragão": {
+            1: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/dragao%2001.png?raw=true",
+            2: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/dragao%2002.png?raw=true",
+            3: "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/dragao%2003.png?raw=true"
+        }
     }
 }
 
@@ -159,12 +186,33 @@ HEROIS = {
     ]
 }
 
+# Inimigos - Sistema de 3 versões por monstro
+# Progressão: Base → 3x mais forte → 9x mais forte (3x do anterior)
 INIMIGOS = {
-    "Goblin": {"hp": 100, "atk": 15, "def": 8, "xp": 25, "gold": 15, "desc": "Criatura verde maliciosa", "m": [1]},
-    "Lobo": {"hp": 150, "atk": 22, "def": 12, "xp": 40, "gold": 25, "desc": "Predador feroz", "m": [1,2]},
-    "Orc": {"hp": 280, "atk": 38, "def": 20, "xp": 80, "gold": 60, "desc": "Guerreiro brutal", "m": [2,3]},
-    "Esqueleto": {"hp": 220, "atk": 30, "def": 15, "xp": 70, "gold": 50, "desc": "Morto-vivo", "m": [2,3]},
-    "Dragão": {"hp": 600, "atk": 70, "def": 35, "xp": 300, "gold": 250, "desc": "Besta lendária", "m": [3]}
+    # GOBLIN
+    "Goblin da Planície": {"hp": 100, "atk": 15, "def": 8, "xp": 25, "gold": 15, "desc": "Goblin verde das planícies", "m": [1], "tipo": "Goblin"},
+    "Goblin da Floresta": {"hp": 300, "atk": 45, "def": 24, "xp": 75, "gold": 45, "desc": "Goblin feroz da floresta", "m": [2], "tipo": "Goblin"},
+    "Goblin da Caverna": {"hp": 900, "atk": 135, "def": 72, "xp": 225, "gold": 135, "desc": "Goblin sombrio das cavernas", "m": [3], "tipo": "Goblin"},
+    
+    # LOBO
+    "Lobo da Planície": {"hp": 150, "atk": 22, "def": 12, "xp": 40, "gold": 25, "desc": "Lobo selvagem das planícies", "m": [1], "tipo": "Lobo"},
+    "Lobo da Floresta": {"hp": 450, "atk": 66, "def": 36, "xp": 120, "gold": 75, "desc": "Lobo alfa da floresta", "m": [2], "tipo": "Lobo"},
+    "Lobo da Caverna": {"hp": 1350, "atk": 198, "def": 108, "xp": 360, "gold": 225, "desc": "Lobo das sombras", "m": [3], "tipo": "Lobo"},
+    
+    # ORC
+    "Orc da Planície": {"hp": 280, "atk": 38, "def": 20, "xp": 80, "gold": 60, "desc": "Orc guerreiro", "m": [1, 2], "tipo": "Orc"},
+    "Orc da Floresta": {"hp": 840, "atk": 114, "def": 60, "xp": 240, "gold": 180, "desc": "Orc berserker", "m": [2, 3], "tipo": "Orc"},
+    "Orc da Caverna": {"hp": 2520, "atk": 342, "def": 180, "xp": 720, "gold": 540, "desc": "Orc brutal das profundezas", "m": [3], "tipo": "Orc"},
+    
+    # ESQUELETO
+    "Esqueleto da Planície": {"hp": 220, "atk": 30, "def": 15, "xp": 70, "gold": 50, "desc": "Esqueleto guerreiro", "m": [1, 2], "tipo": "Esqueleto"},
+    "Esqueleto da Floresta": {"hp": 660, "atk": 90, "def": 45, "xp": 210, "gold": 150, "desc": "Esqueleto ancestral", "m": [2, 3], "tipo": "Esqueleto"},
+    "Esqueleto da Caverna": {"hp": 1980, "atk": 270, "def": 135, "xp": 630, "gold": 450, "desc": "Esqueleto rei", "m": [3], "tipo": "Esqueleto"},
+    
+    # DRAGÃO
+    "Dragão da Planície": {"hp": 600, "atk": 70, "def": 35, "xp": 300, "gold": 250, "desc": "Dragão jovem", "m": [1], "tipo": "Dragão"},
+    "Dragão da Floresta": {"hp": 1800, "atk": 210, "def": 105, "xp": 900, "gold": 750, "desc": "Dragão ancestral", "m": [2], "tipo": "Dragão"},
+    "Dragão da Caverna": {"hp": 5400, "atk": 630, "def": 315, "xp": 2700, "gold": 2250, "desc": "Dragão primordial", "m": [3], "tipo": "Dragão"}
 }
 
 # Equipamentos específicos por classe
@@ -232,10 +280,11 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS combate 
                  (pid INTEGER PRIMARY KEY, inimigo TEXT, i_hp INTEGER, i_hp_max INTEGER,
                   i_atk INTEGER, i_def INTEGER, i_xp INTEGER, i_gold INTEGER, turno INTEGER DEFAULT 1,
-                  defendendo INTEGER DEFAULT 0, heroi TEXT DEFAULT NULL)''')
+                  defendendo INTEGER DEFAULT 0, heroi TEXT DEFAULT NULL, tipo_monstro TEXT, mapa_monstro INTEGER)''')
     c.execute('''CREATE TABLE IF NOT EXISTS heroi_oferta 
                  (pid INTEGER PRIMARY KEY, heroi_nome TEXT, heroi_img TEXT, 
-                  inimigo TEXT, i_hp INTEGER, i_atk INTEGER, i_def INTEGER, i_xp INTEGER, i_gold INTEGER)''')
+                  inimigo TEXT, i_hp INTEGER, i_atk INTEGER, i_def INTEGER, i_xp INTEGER, i_gold INTEGER,
+                  tipo_monstro TEXT, mapa_monstro INTEGER)''')
     conn.commit()
     conn.close()
 
@@ -372,11 +421,12 @@ async def cacar(upd, ctx):
         if herois_mapa:
             heroi = random.choice(herois_mapa)
             
-            # Salvar oferta de herói
+            # Salvar oferta de herói com tipo e mapa do monstro
             conn = sqlite3.connect(DB_FILE)
             conn.execute("DELETE FROM heroi_oferta WHERE pid=?", (uid,))
-            conn.execute("INSERT INTO heroi_oferta VALUES (?,?,?,?,?,?,?,?,?)", 
-                        (uid, heroi['nome'], heroi['img'], inm, ini['hp'], ini['atk'], ini['def'], ini['xp'], ini['gold']))
+            conn.execute("INSERT INTO heroi_oferta VALUES (?,?,?,?,?,?,?,?,?,?,?)", 
+                        (uid, heroi['nome'], heroi['img'], inm, ini['hp'], ini['atk'], ini['def'], 
+                         ini['xp'], ini['gold'], ini['tipo'], p['mapa']))
             conn.execute("UPDATE players SET energia=energia-2 WHERE id=?", (uid,))
             conn.commit()
             conn.close()
@@ -385,10 +435,11 @@ async def cacar(upd, ctx):
             await mostrar_oferta_heroi(upd, ctx, uid, heroi)
             return
     
-    # Sem herói - criar combate normal
+    # Sem herói - criar combate normal com tipo e mapa do monstro
     conn = sqlite3.connect(DB_FILE)
-    conn.execute("INSERT INTO combate VALUES (?,?,?,?,?,?,?,?,1,0,NULL)", 
-                 (uid, inm, ini['hp'], ini['hp'], ini['atk'], ini['def'], ini['xp'], ini['gold']))
+    conn.execute("INSERT INTO combate VALUES (?,?,?,?,?,?,?,?,1,0,NULL,?,?)", 
+                 (uid, inm, ini['hp'], ini['hp'], ini['atk'], ini['def'], ini['xp'], ini['gold'], 
+                  ini['tipo'], p['mapa']))
     conn.execute("UPDATE players SET energia=energia-2 WHERE id=?", (uid,))
     conn.commit()
     conn.close()
@@ -433,10 +484,10 @@ async def heroi_aceitar(upd, ctx):
     
     # Criar combate COM herói
     conn = sqlite3.connect(DB_FILE)
-    conn.execute("INSERT INTO combate VALUES (?,?,?,?,?,?,?,?,1,0,?)", 
+    conn.execute("INSERT INTO combate VALUES (?,?,?,?,?,?,?,?,1,0,?,?,?)", 
                  (uid, h_oferta['inimigo'], h_oferta['i_hp'], h_oferta['i_hp'], 
                   h_oferta['i_atk'], h_oferta['i_def'], h_oferta['i_xp'], h_oferta['i_gold'], 
-                  h_oferta['heroi_nome']))
+                  h_oferta['heroi_nome'], h_oferta['tipo_monstro'], h_oferta['mapa_monstro']))
     conn.execute("DELETE FROM heroi_oferta WHERE pid=?", (uid,))
     conn.commit()
     conn.close()
@@ -456,9 +507,10 @@ async def heroi_recusar(upd, ctx):
     
     # Criar combate SEM herói
     conn = sqlite3.connect(DB_FILE)
-    conn.execute("INSERT INTO combate VALUES (?,?,?,?,?,?,?,?,1,0,NULL)", 
+    conn.execute("INSERT INTO combate VALUES (?,?,?,?,?,?,?,?,1,0,NULL,?,?)", 
                  (uid, h_oferta['inimigo'], h_oferta['i_hp'], h_oferta['i_hp'], 
-                  h_oferta['i_atk'], h_oferta['i_def'], h_oferta['i_xp'], h_oferta['i_gold']))
+                  h_oferta['i_atk'], h_oferta['i_def'], h_oferta['i_xp'], h_oferta['i_gold'],
+                  h_oferta['tipo_monstro'], h_oferta['mapa_monstro']))
     conn.execute("DELETE FROM heroi_oferta WHERE pid=?", (uid,))
     conn.commit()
     conn.close()
@@ -523,6 +575,14 @@ async def mostrar_combate(upd, ctx, uid):
     
     kb.append([InlineKeyboardButton("🏃 Fugir",callback_data="bat_fug")])
     
+    # Buscar imagem específica do monstro baseado em tipo e mapa
+    img_monstro = IMAGENS["combate"]  # padrão
+    if cb.get('tipo_monstro') and cb.get('mapa_monstro'):
+        tipo = cb['tipo_monstro']
+        mapa = cb['mapa_monstro']
+        if tipo in IMAGENS["monstros"] and mapa in IMAGENS["monstros"][tipo]:
+            img_monstro = IMAGENS["monstros"][tipo][mapa]
+    
     # Se for callback query, tentar editar a mensagem existente
     if upd.callback_query:
         try:
@@ -539,8 +599,8 @@ async def mostrar_combate(upd, ctx, uid):
             except: 
                 pass
     
-    # Criar nova mensagem com imagem de combate
-    await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["combate"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    # Criar nova mensagem com imagem do monstro específico
+    await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
 async def bat_heroi(upd, ctx):
     q = upd.callback_query
