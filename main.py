@@ -10,17 +10,38 @@ from telegram.request import HTTPXRequest
 # Configurar timeouts menores
 request = HTTPXRequest(connection_pool_size=8, connect_timeout=10, read_timeout=10)
 
-VERSAO = "5.8.0"  # <--- MUDEI AQUI
+VERSAO = "5.9.0"  # <--- MUDEI AQUI
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def run_fake_server():
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
+            # Se a requisição for para /health, responde rápido e SAI
+            if self.path == '/health':
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'OK')
+                return
+            
+            # Se for qualquer outra coisa, mostra a página normal
             self.send_response(200)
-            self.send_header('Content-type', 'text/plain')
+            self.send_header('Content-type', 'text/html')
             self.end_headers()
-            self.wfile.write(b"Bot Online!")
-        def log_message(self, format, *args): pass
+            self.wfile.write(b"""
+            <html>
+                <head><title>Bot Status</title></head>
+                <body>
+                    <h1>✅ Bot Online</h1>
+                    <p>Este é apenas um servidor de status.</p>
+                    <p>O bot do Telegram roda em paralelo.</p>
+                </body>
+            </html>
+            """)
+        
+        def log_message(self, format, *args): 
+            pass  # Não loga nada pra não poluir
+    
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(('0.0.0.0', port), Handler)
     logging.info(f"HTTP Server on port {port}")
