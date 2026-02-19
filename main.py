@@ -10,7 +10,7 @@ from telegram.request import HTTPXRequest
 # Configurar timeouts menores
 request = HTTPXRequest(connection_pool_size=8, connect_timeout=10, read_timeout=10)
 
-VERSAO = "5.4.0"  # <--- MUDEI AQUI
+VERSAO = "5.5.0"  # <--- MUDEI AQUI
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def run_fake_server():
@@ -1521,9 +1521,20 @@ async def start(upd, ctx):
         await menu(upd, ctx, uid)
         return ConversationHandler.END
     ctx.user_data.clear()
-    cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nVersão: `{VERSAO}`\n\n🎮 **NOVIDADES:**\n⚔️ Combate Manual\n🎭 Classes Únicas\n💊 Sistema de Consumíveis\n🔮 Habilidades Especiais\n💙 Sistema de Mana\n{'━'*20}"
+    
+    # ===== FORÇA BRUTA =====
+    import datetime
+    agora = datetime.datetime.now().strftime("%H:%M:%S")
+    cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nVersão: `{VERSAO} - {agora}`\n\n🎮 **NOVIDADES:**\n⚔️ Combate Manual\n🎭 Classes Únicas\n💊 Sistema de Consumíveis\n🔮 Habilidades Especiais\n💙 Sistema de Mana\n{'━'*20}"
+    # ========================
+    
     kb = [[InlineKeyboardButton("🎮 Começar",callback_data="ir_cls")]]
-    await upd.message.reply_photo(IMAGENS["logo"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    await upd.message.reply_photo(
+        IMAGENS["logo"] + f"?v={VERSAO}_{agora}",  # Quebra cache TOTAL
+        caption=cap, 
+        reply_markup=InlineKeyboardMarkup(kb), 
+        parse_mode='Markdown'
+    )
     return ST_CL
 
 async def menu_cls(upd, ctx):
