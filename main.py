@@ -9,7 +9,7 @@ from cachetools import TTLCache
 import datetime
 import requests
 
-VERSAO = "7.1.1 - dano e def equilibrio"
+VERSAO = "7.2.1 - dano e def equilibrio"
 
 # Request com timeout otimizado
 request = HTTPXRequest(
@@ -173,10 +173,38 @@ IMAGENS = {
 }
 
 CLASSE_STATS = {
-    "Guerreiro": {"hp": 180, "mana": 0, "atk": 7, "def": 10, "crit": 0, "double": False, "especial": None},
-    "Arqueiro": {"hp": 130, "mana": 0, "atk": 9, "def": 6, "crit": 25, "double": True, "especial": None},
-    "Bruxa": {"hp": 140, "mana": 100, "atk": 8, "def": 7, "crit": 10, "double": False, "especial": "maldição"},
-    "Mago": {"hp": 120, "mana": 120, "atk": 10, "def": 5, "crit": 15, "double": False, "especial": "explosão"}
+    "Guerreiro": {  # TANK
+        "hp": 200,
+        "mana": 0,
+        "atk": 8,
+        "def": 25,        # ALTA defesa
+        "crit": 5,
+        "double": False
+    },
+    "Arqueiro": {   # DPS
+        "hp": 140,
+        "mana": 0,
+        "atk": 12,
+        "def": 12,        # MÉDIA defesa
+        "crit": 25,
+        "double": True
+    },
+    "Bruxa": {      # HÍBRIDA
+        "hp": 160,
+        "mana": 120,
+        "atk": 10,
+        "def": 15,        # MÉDIA+ defesa
+        "crit": 10,
+        "double": False
+    },
+    "Mago": {       # GLASS CANNON
+        "hp": 120,
+        "mana": 150,
+        "atk": 14,
+        "def": 8,         # BAIXA defesa
+        "crit": 15,
+        "double": False
+    }
 }
 
 MAPAS = {
@@ -381,10 +409,14 @@ def img_c(cl):
     return IMAGENS["classes"].get(cl, IMG)
 
 def calc_atk(dados):
-    return CLASSE_STATS[dados['classe']]['atk'] + (dados['lv'] * 8) + dados['atk_b']  # 3 → 8
+    """Calcula ataque final (base + nível + equip)"""
+    base = CLASSE_STATS[dados['classe']]['atk']
+    return base + (dados['lv'] * 3) + dados['atk_b']
 
-def calc_def(dados):
-    return CLASSE_STATS[dados['classe']]['def'] + (dados['lv'] * 5) + dados['def_b']  # 2 → 5
+def calc_def_percentual(dados):
+    """Calcula defesa como % (base + equip)"""
+    base = CLASSE_STATS[dados['classe']]['def']
+    return base + dados['def_b']  # retorna % (ex: 25 + 5 = 30%)
 
 # ===== MONTA TELA DE COMBATE (sem queries) =====
 def montar_cap_combate(dados):
@@ -723,28 +755,47 @@ async def bat_atk(upd, ctx):
     resultado = None
 
     if i_hp <= 0:
-        p_hp = max(1, p_hp)
-        c.execute("UPDATE players SET hp=%s, gold=gold+%s, exp=exp+%s WHERE id=%s",
-                  (p_hp, dados['i_gold'], dados['i_xp'], uid))
-        c.execute("DELETE FROM combate WHERE pid=%s", (uid,))
-        resultado = "vitoria"
-    else:
-        def_bonus = 0.5 if dados['defendendo'] else 0
-        dano_ini = max(1, int((dados['i_atk'] - p_def) * (1 - def_bonus) + random.randint(-2, 2)))
-        p_hp -= dano_ini
-        log.append(f"🐺 {dados['inimigo']} atacou! -{dano_ini} HP")
-
-        if p_hp <= 0:
-            c.execute("UPDATE players SET hp=1 WHERE id=%s", (uid,))
-            c.execute("DELETE FROM combate WHERE pid=%s", (uid,))
-            resultado = "derrota"
-        else:
-            c.execute("UPDATE combate SET i_hp=%s, turno=turno+1, defendendo=0 WHERE pid=%s", (i_hp, uid))
-            c.execute("UPDATE players SET hp=%s WHERE id=%s", (p_hp, uid))
-            resultado = "continua"
-
+    p_hp = max(1, p_hp)
+    c.execute("UPDATE players SET hp=%s, gold=gold+%s, exp=exp+%s WHERE id=%s", 
+              (p_hp, dados['i_gold'], dados['i_exp'], uid))
+    
+    # PRIMEiro dá COMMIT pra garantir que os dados foram salvos
     conn.commit()
-    invalidate_cache(uid)
+    
+    # DEPOIS busca os dados ATUALIZADOS
+    c.execute("SELECT lv, exp, classe FROM players WHERE id=%s", (uid,))
+    player_atual = c.fetchone()
+    
+    # E SÓ ENTÃO verifica nível
+    if player_atual:
+        lv_atual, exp_atual, classe = player_atual
+        xp_necessario = lv_atual * 100
+        
+        if exp_atual >= xp_necessario:
+            # ... lógica de subir nível ...
+            novo_lv = lv_atual + 1
+            exp_restante = exp_atual - xp_necessario
+            stats = CLASSE_STATS[classe]
+            novo_hp_max = stats['hp'] * novo_lv
+            novo_mana_max = stats['mana'] * novo_lv if stats['mana'] > 0 else 0
+            
+            c.execute("""
+                UPDATE players SET 
+                    lv = %s,
+                    exp = %s,
+                    hp_max = %s,
+                    hp = %s,
+                    mana_max = %s,
+                    mana = %s
+                WHERE id = %s
+            """, (novo_lv, exp_restante, novo_hp_max, novo_hp_max, 
+                  novo_mana_max, novo_mana_max, uid))
+            
+            conn.commit()  # COMMIT do novo nível
+    
+    c.execute("DELETE FROM combate WHERE pid=%s", (uid,))
+    resultado = "vitoria"
+    
 
     if resultado == "vitoria":
         cap = (f"🏆 **VITÓRIA!**\n{'━'*20}\n🐺 {dados['inimigo']} derrotado!\n\n"
@@ -1652,6 +1703,59 @@ async def salv_nm(upd, ctx):
         pass
     await ctx.bot.send_photo(upd.effective_chat.id, img_c(q.data), caption=cap, parse_mode='Markdown')
     return ST_NM
+
+async def verificar_e_subir_nivel(uid, player_data, cursor, ctx, upd):
+    """Verifica se o jogador subiu de nível e atualiza"""
+    
+    # Pega os dados atuais
+    lv_atual = player_data[0]  # lv
+    exp_atual = player_data[1]  # exp
+    classe = player_data[2]  # classe
+    
+    # Calcula XP necessário para o próximo nível
+    xp_necessario = lv_atual * 100
+    
+    # Se tiver XP suficiente, sobe de nível
+    if exp_atual >= xp_necessario:
+        novo_lv = lv_atual + 1
+        exp_restante = exp_atual - xp_necessario
+        
+        # Pega stats da classe
+        stats = CLASSE_STATS[classe]
+        
+        # Calcula novos valores máximos
+        novo_hp_max = stats['hp'] * novo_lv
+        novo_mana_max = stats['mana'] * novo_lv if stats['mana'] > 0 else 0
+        
+        # Atualiza no banco
+        cursor.execute("""
+            UPDATE players SET 
+                lv = %s,
+                exp = %s,
+                hp_max = %s,
+                hp = %s,
+                mana_max = %s,
+                mana = %s
+            WHERE id = %s
+        """, (novo_lv, exp_restante, novo_hp_max, novo_hp_max, 
+              novo_mana_max, novo_mana_max, uid))
+        
+        # Envia mensagem de parabéns
+        try:
+            await ctx.bot.send_message(
+                upd.effective_chat.id,
+                f"✨ **PARABÉNS!** ✨\nVocê subiu para o **Nível {novo_lv}!**",
+                parse_mode='Markdown'
+            )
+        except:
+            pass
+        
+        # Verifica se ainda tem XP para mais níveis
+        if exp_restante >= novo_lv * 100:
+            # Busca dados atualizados e chama de novo
+            cursor.execute("SELECT lv, exp, classe FROM players WHERE id=%s", (uid,))
+            novos_dados = cursor.fetchone()
+            await verificar_e_subir_nivel(uid, novos_dados, cursor, ctx, upd)
 
 async def fin(upd, ctx):
     uid = upd.effective_user.id
