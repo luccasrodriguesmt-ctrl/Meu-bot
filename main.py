@@ -9,7 +9,7 @@ from cachetools import TTLCache
 import datetime
 import requests
 
-VERSAO = "7.0.0"
+VERSAO = "7.1.0 - equilibrio"
 
 # Request com timeout otimizado
 request = HTTPXRequest(
@@ -173,10 +173,10 @@ IMAGENS = {
 }
 
 CLASSE_STATS = {
-    "Guerreiro": {"hp": 250, "mana": 0, "atk": 8, "def": 18, "crit": 0, "double": False, "especial": None},
-    "Arqueiro": {"hp": 120, "mana": 0, "atk": 10, "def": 5, "crit": 25, "double": True, "especial": None},
-    "Bruxa": {"hp": 150, "mana": 100, "atk": 9, "def": 8, "crit": 10, "double": False, "especial": "maldição"},
-    "Mago": {"hp": 130, "mana": 120, "atk": 6, "def": 6, "crit": 15, "double": False, "especial": "explosão"}
+    "Guerreiro": {"hp": 180, "mana": 0, "atk": 7, "def": 10, "crit": 0, "double": False, "especial": None},
+    "Arqueiro": {"hp": 130, "mana": 0, "atk": 9, "def": 6, "crit": 25, "double": True, "especial": None},
+    "Bruxa": {"hp": 140, "mana": 100, "atk": 8, "def": 7, "crit": 10, "double": False, "especial": "maldição"},
+    "Mago": {"hp": 120, "mana": 120, "atk": 10, "def": 5, "crit": 15, "double": False, "especial": "explosão"}
 }
 
 MAPAS = {
@@ -235,32 +235,38 @@ INIMIGOS = {
     "Dragão da Caverna": {"hp": 1200, "atk": 90, "def": 45, "xp": 400, "gold": 300, "desc": "Dragão primordial", "m": [3], "tipo": "Dragão"}
 }
 EQUIPS = {
-    "Espada Enferrujada": {"t": "arma", "atk": 5, "p": 50, "lv": 1, "cls": ["Guerreiro"]},
-    "Espada de Ferro": {"t": "arma", "atk": 15, "p": 200, "lv": 5, "cls": ["Guerreiro"]},
-    "Espada de Aço": {"t": "arma", "atk": 30, "p": 500, "lv": 10, "cls": ["Guerreiro"]},
-    "Escudo de Madeira": {"t": "arm", "def": 8, "p": 50, "lv": 1, "cls": ["Guerreiro"]},
-    "Escudo de Ferro": {"t": "arm", "def": 18, "p": 200, "lv": 5, "cls": ["Guerreiro"]},
-    "Escudo de Aço": {"t": "arm", "def": 35, "p": 500, "lv": 10, "cls": ["Guerreiro"]},
-    "Arco Simples": {"t": "arma", "atk": 8, "p": 50, "lv": 1, "cls": ["Arqueiro"]},
-    "Arco Composto": {"t": "arma", "atk": 18, "p": 200, "lv": 5, "cls": ["Arqueiro"]},
-    "Arco Élfico": {"t": "arma", "atk": 35, "p": 500, "lv": 10, "cls": ["Arqueiro"]},
-    "Armadura Leve": {"t": "arm", "def": 5, "p": 50, "lv": 1, "cls": ["Arqueiro"]},
-    "Couro Reforçado": {"t": "arm", "def": 12, "p": 200, "lv": 5, "cls": ["Arqueiro"]},
-    "Manto Sombrio": {"t": "arm", "def": 20, "p": 500, "lv": 10, "cls": ["Arqueiro"]},
-    "Cajado Antigo": {"t": "arma", "atk": 7, "p": 50, "lv": 1, "cls": ["Bruxa"]},
-    "Cetro Lunar": {"t": "arma", "atk": 17, "p": 200, "lv": 5, "cls": ["Bruxa"]},
-    "Varinha das Trevas": {"t": "arma", "atk": 32, "p": 500, "lv": 10, "cls": ["Bruxa"]},
-    "Robe Místico": {"t": "arm", "def": 6, "p": 50, "lv": 1, "cls": ["Bruxa"]},
-    "Manto Encantado": {"t": "arm", "def": 14, "p": 200, "lv": 5, "cls": ["Bruxa"]},
-    "Vestes Arcanas": {"t": "arm", "def": 22, "p": 500, "lv": 10, "cls": ["Bruxa"]},
-    "Bastão Iniciante": {"t": "arma", "atk": 10, "p": 50, "lv": 1, "cls": ["Mago"]},
-    "Orbe de Fogo": {"t": "arma", "atk": 22, "p": 200, "lv": 5, "cls": ["Mago"]},
-    "Cetro do Caos": {"t": "arma", "atk": 40, "p": 500, "lv": 10, "cls": ["Mago"]},
-    "Túnica Simples": {"t": "arm", "def": 5, "p": 50, "lv": 1, "cls": ["Mago"]},
-    "Armadura Mágica": {"t": "arm", "def": 12, "p": 200, "lv": 5, "cls": ["Mago"]},
-    "Robe do Arquimago": {"t": "arm", "def": 20, "p": 500, "lv": 10, "cls": ["Mago"]}
+    # ===== GUERREIRO =====
+    "Espada Enferrujada": {"t": "arma", "atk": 3, "p": 50, "lv": 1, "cls": ["Guerreiro"]},
+    "Espada de Ferro": {"t": "arma", "atk": 10, "p": 200, "lv": 5, "cls": ["Guerreiro"]},
+    "Espada de Aço": {"t": "arma", "atk": 22, "p": 500, "lv": 10, "cls": ["Guerreiro"]},
+    "Escudo de Madeira": {"t": "arm", "def": 4, "p": 50, "lv": 1, "cls": ["Guerreiro"]},
+    "Escudo de Ferro": {"t": "arm", "def": 12, "p": 200, "lv": 5, "cls": ["Guerreiro"]},
+    "Escudo de Aço": {"t": "arm", "def": 22, "p": 500, "lv": 10, "cls": ["Guerreiro"]},
+    
+    # ===== ARQUEIRO =====
+    "Arco Simples": {"t": "arma", "atk": 4, "p": 50, "lv": 1, "cls": ["Arqueiro"]},
+    "Arco Composto": {"t": "arma", "atk": 11, "p": 200, "lv": 5, "cls": ["Arqueiro"]},
+    "Arco Élfico": {"t": "arma", "atk": 24, "p": 500, "lv": 10, "cls": ["Arqueiro"]},
+    "Armadura Leve": {"t": "arm", "def": 3, "p": 50, "lv": 1, "cls": ["Arqueiro"]},
+    "Couro Reforçado": {"t": "arm", "def": 9, "p": 200, "lv": 5, "cls": ["Arqueiro"]},
+    "Manto Sombrio": {"t": "arm", "def": 18, "p": 500, "lv": 10, "cls": ["Arqueiro"]},
+    
+    # ===== BRUXA =====
+    "Cajado Antigo": {"t": "arma", "atk": 3, "p": 50, "lv": 1, "cls": ["Bruxa"]},
+    "Cetro Lunar": {"t": "arma", "atk": 10, "p": 200, "lv": 5, "cls": ["Bruxa"]},
+    "Varinha das Trevas": {"t": "arma", "atk": 22, "p": 500, "lv": 10, "cls": ["Bruxa"]},
+    "Robe Místico": {"t": "arm", "def": 4, "p": 50, "lv": 1, "cls": ["Bruxa"]},
+    "Manto Encantado": {"t": "arm", "def": 11, "p": 200, "lv": 5, "cls": ["Bruxa"]},
+    "Vestes Arcanas": {"t": "arm", "def": 20, "p": 500, "lv": 10, "cls": ["Bruxa"]},
+    
+    # ===== MAGO =====
+    "Bastão Iniciante": {"t": "arma", "atk": 4, "p": 50, "lv": 1, "cls": ["Mago"]},
+    "Orbe de Fogo": {"t": "arma", "atk": 12, "p": 200, "lv": 5, "cls": ["Mago"]},
+    "Cetro do Caos": {"t": "arma", "atk": 25, "p": 500, "lv": 10, "cls": ["Mago"]},
+    "Túnica Simples": {"t": "arm", "def": 3, "p": 50, "lv": 1, "cls": ["Mago"]},
+    "Armadura Mágica": {"t": "arm", "def": 9, "p": 200, "lv": 5, "cls": ["Mago"]},
+    "Robe do Arquimago": {"t": "arm", "def": 18, "p": 500, "lv": 10, "cls": ["Mago"]}
 }
-
 CONSUMIVEIS = {
     "Poção de Vida": {"tipo": "hp", "valor": 50, "preco": 20},
     "Poção Grande de Vida": {"tipo": "hp", "valor": 100, "preco": 50},
@@ -269,8 +275,8 @@ CONSUMIVEIS = {
 }
 
 DUNGEONS = [
-    {"nome": "Covil Goblin", "lv": 5, "boss": "Rei Goblin", "bhp": 100, "batk": 20, "xp": 200, "g": 150},
-    {"nome": "Ninho Lobos", "lv": 10, "boss": "Lobo Alpha", "bhp": 150, "batk": 30, "xp": 400, "g": 300}
+    {"nome": "Covil Goblin", "lv": 5, "boss": "Rei Goblin", "bhp": 350, "batk": 28, "xp": 250, "g": 200},
+    {"nome": "Ninho Lobos", "lv": 10, "boss": "Lobo Alpha", "bhp": 650, "batk": 45, "xp": 500, "g": 400}
 ]
 
 ST_CL, ST_NM = range(2)
