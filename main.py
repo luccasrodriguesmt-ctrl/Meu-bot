@@ -706,18 +706,18 @@ async def bat_atk(upd, ctx):
     for _ in range(num_ataques):
         dano_base = int(p_atk * (100 / (100 + dados['i_def'])))
         dano = max(1, dano_base + random.randint(-2, 2))
-        i_hp -= dano
-        log.append(f"⚔️ Ataque! -{dano} HP")
-
-    # crítico
-    if is_crit:
-        dano = int(dano * 1.5)
-
-    i_hp -= dano
-    log.append(f"{'💥 CRÍTICO' if is_crit else '⚔️ Você'}! -{dano} HP")
-
-    if i_hp <= 0:
-        break
+    
+        if is_crit:
+            dano = int(dano * 1.5)
+            i_hp -= dano
+            log.append(f"💥 CRÍTICO! -{dano} HP")
+        else:
+            i_hp -= dano
+            log.append(f"⚔️ Ataque! -{dano} HP")
+    
+    # AGORA O BREAK ESTÁ DENTRO DO FOR
+        if i_hp <= 0:
+            break
 
 
     resultado = None
