@@ -8,6 +8,17 @@ from telegram.request import HTTPXRequest
 from cachetools import TTLCache
 import datetime
 import requests
+# ===== MODO TURBO =====
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+# Executor para queries lentas
+executor = ThreadPoolExecutor(max_workers=4)
+
+def get_p_async(uid):
+    """Versão ainda mais rápida"""
+    loop = asyncio.get_event_loop()
+    return loop.run_in_executor(executor, get_p_cached, uid)
 
 # ===== CONFIGURAÇÕES DE PERFORMANCE =====
 VERSAO = "6.0.0"
@@ -23,10 +34,10 @@ connection_pool = {}
 
 # Request com timeout otimizado
 request = HTTPXRequest(
-    connection_pool_size=20,
-    connect_timeout=5,
-    read_timeout=5,
-    pool_timeout=1.0
+    connection_pool_size=50,  # AUMENTA
+    connect_timeout=2,         # DIMINUI
+    read_timeout=2,            # DIMINUI
+    pool_timeout=0.5           # DIMINUI
 )
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -1763,7 +1774,7 @@ def main():
     app.add_handler(CallbackQueryHandler(menu_cls, pattern='^ir_cls$'))
     app.add_handler(CallbackQueryHandler(voltar, pattern='^voltar$'))
     
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(drop_pending_updates=True, poll_interval=0.5, timeout=10)
 
 if __name__ == '__main__':
     main()
