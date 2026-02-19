@@ -4,8 +4,13 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 from psycopg2.extras import RealDictCursor
 from urllib.parse import urlparse
+import asyncio
+from telegram.request import HTTPXRequest
 
-VERSAO = "4.0.0"
+# Configurar timeouts menores
+request = HTTPXRequest(connection_pool_size=8, connect_timeout=10, read_timeout=10)
+
+VERSAO = "5.0.0"
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def run_fake_server():
@@ -32,7 +37,6 @@ def get_db_connection():
     if DATABASE_URL:
         return psycopg2.connect(DATABASE_URL, sslmode='require')
     else:
-        # Fallback para variáveis individuais
         return psycopg2.connect(
             host=os.getenv("PGHOST"),
             database=os.getenv("PGDATABASE"),
@@ -632,8 +636,10 @@ async def heroi_recusar(upd, ctx):
 async def mostrar_combate(upd, ctx, uid):
     p = get_p(uid)
     cb = get_combate(uid)
+    
+    # SE NÃO TEM COMBATE, VOLTA PRO MENU
     if not cb:
-        await menu(upd, ctx, uid)
+        await menu(upd, ctx, uid, "⚔️ Combate finalizado!")
         return
     
     inv = get_inv(uid)
@@ -686,41 +692,42 @@ async def mostrar_combate(upd, ctx, uid):
     
     kb.append([InlineKeyboardButton("🏃 Fugir",callback_data="bat_fug")])
     
-    # Buscar imagem específica do monstro baseado em tipo e mapa
-    img_monstro = IMAGENS["combate"]  # padrão
+    # Buscar imagem do monstro
+    img_monstro = IMAGENS["combate"]
     if cb.get('tipo_monstro') and cb.get('mapa_monstro'):
         tipo = cb['tipo_monstro']
         mapa = cb['mapa_monstro']
         if tipo in IMAGENS["monstros"] and mapa in IMAGENS["monstros"][tipo]:
             img_monstro = IMAGENS["monstros"][tipo][mapa]
     
-    # LÓGICA SIMPLIFICADA:
-    # Turno 1 = sempre criar nova mensagem
-    # Turno 2+ = sempre tentar editar, se falhar criar nova
-    
-    if cb['turno'] == 1:
-        # Primeiro turno - sempre criar nova mensagem
-        # Não há mensagem anterior de combate para editar
-        await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-    else:
-        # Turnos seguintes - tentar editar a mensagem de combate existente
-        if upd.callback_query:
-            try:
-                await upd.callback_query.edit_message_caption(
-                    caption=cap, 
-                    reply_markup=InlineKeyboardMarkup(kb), 
-                    parse_mode='Markdown'
-                )
-            except Exception as e:
-                # Se falhar (mensagem muito antiga, etc), criar nova
+    try:
+        # TENTA EDITAR A MENSAGEM EXISTENTE
+        if upd.callback_query and cb['turno'] > 1:
+            await upd.callback_query.edit_message_caption(
+                caption=cap, 
+                reply_markup=InlineKeyboardMarkup(kb), 
+                parse_mode='Markdown'
+            )
+        else:
+            # PRIMEIRO TURNO OU FALHOU EDIÇÃO - CRIA NOVA
+            if upd.callback_query:
                 try:
                     await upd.callback_query.message.delete()
                 except:
                     pass
-                await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-        else:
-            # Não é callback, criar nova
             await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    except Exception as e:
+        # SE EDITAR FALHAR, CRIA NOVA MENSAGEM
+        print(f"Erro ao mostrar combate: {e}")
+        try:
+            if upd.callback_query:
+                try:
+                    await upd.callback_query.message.delete()
+                except:
+                    pass
+            await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        except:
+            pass
 
 async def bat_heroi(upd, ctx):
     q = upd.callback_query
@@ -1673,7 +1680,9 @@ async def fin(upd, ctx):
 def main():
     init_db()
     token = os.getenv("TELEGRAM_TOKEN")
-    app = ApplicationBuilder().token(token).build()
+    
+    # Criar app com request configurado
+    app = ApplicationBuilder().token(token).request(request).build()
     
     conv = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
