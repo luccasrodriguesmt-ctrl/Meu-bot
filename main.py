@@ -9,7 +9,7 @@ from cachetools import TTLCache
 import datetime
 import requests
 
-VERSAO = "7.1.0 - equilibrio"
+VERSAO = "7.1.1 - dano e def equilibrio"
 
 # Request com timeout otimizado
 request = HTTPXRequest(
@@ -704,13 +704,22 @@ async def bat_atk(upd, ctx):
     num_ataques = 2 if dados['double_atk'] else 1
 
     for _ in range(num_ataques):
-        dano = max(1, p_atk - dados['i_def'] + random.randint(-2, 2))
-        if is_crit:
-            dano = int(dano * 1.5)
-        i_hp -= dano
-        log.append(f"{'💥 CRÍTICO' if is_crit else '⚔️ Você'}! -{dano} HP")
-        if i_hp <= 0:
-            break
+    # dano base (RPG clássico)
+    dano_base = int(p_atk * (100 / (100 + dados['i_def'])))
+
+    # variação aleatória (mantém o feeling do seu sistema)
+    dano = max(1, dano_base + random.randint(-2, 2))
+
+    # crítico
+    if is_crit:
+        dano = int(dano * 1.5)
+
+    i_hp -= dano
+    log.append(f"{'💥 CRÍTICO' if is_crit else '⚔️ Você'}! -{dano} HP")
+
+    if i_hp <= 0:
+        break
+
 
     resultado = None
 
