@@ -456,7 +456,7 @@ async def cacar(upd, ctx):
     if not p:
         await q.answer("Crie personagem!", show_alert=True)
         return
-    if p['energia'] < 2
+    if p['energia'] < 2:
         return:
         await q.answer("🪫 Sem energia!", show_alert=True)
     
