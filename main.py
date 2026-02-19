@@ -10,7 +10,7 @@ from telegram.request import HTTPXRequest
 # Configurar timeouts menores
 request = HTTPXRequest(connection_pool_size=8, connect_timeout=10, read_timeout=10)
 
-VERSAO = "5.3.0"  # <--- MUDEI AQUI
+VERSAO = "5.4.0"  # <--- MUDEI AQUI
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def run_fake_server():
@@ -1462,15 +1462,17 @@ async def rst_y(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
     del_p(uid)
-    await q.answer("✅ Deletado!", show_alert=True)
+    await q.answer("✅ Personagem deletado!", show_alert=True)
     
     ctx.user_data.clear()
-    cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nVersão: `{VERSAO}`\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🎮 Começar",callback_data="ir_cls")]]
     
-    try: await q.message.delete()
-    except: pass
-    await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["logo"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    # INVÉS DE MOSTRAR TELA MORTA, CHAMA O START DIRETO!
+    await start(upd, ctx)
+    
+    # NÃO PRECISA DESSAS LINHAS:
+    # cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nVersão: `{VERSAO}`\n{'━'*20}"
+    # kb = [[InlineKeyboardButton("🎮 Começar",callback_data="ir_cls")]]
+    # await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["logo"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
 async def ch_lv(upd, ctx):
     q = upd.callback_query
