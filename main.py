@@ -704,11 +704,10 @@ async def bat_atk(upd, ctx):
     num_ataques = 2 if dados['double_atk'] else 1
 
     for _ in range(num_ataques):
-    # dano base (RPG clássico)
     dano_base = int(p_atk * (100 / (100 + dados['i_def'])))
-
-    # variação aleatória (mantém o feeling do seu sistema)
     dano = max(1, dano_base + random.randint(-2, 2))
+    i_hp -= dano
+    log.append(f"⚔️ Ataque! -{dano} HP")
 
     # crítico
     if is_crit:
