@@ -375,10 +375,10 @@ def img_c(cl):
     return IMAGENS["classes"].get(cl, IMG)
 
 def calc_atk(dados):
-    return CLASSE_STATS[dados['classe']]['atk'] + (dados['lv'] * 3) + dados['atk_b']
+    return CLASSE_STATS[dados['classe']]['atk'] + (dados['lv'] * 8) + dados['atk_b']  # 3 → 8
 
 def calc_def(dados):
-    return CLASSE_STATS[dados['classe']]['def'] + (dados['lv'] * 2) + dados['def_b']
+    return CLASSE_STATS[dados['classe']]['def'] + (dados['lv'] * 5) + dados['def_b']  # 2 → 5
 
 # ===== MONTA TELA DE COMBATE (sem queries) =====
 def montar_cap_combate(dados):
