@@ -10,7 +10,7 @@ from telegram.request import HTTPXRequest
 # Configurar timeouts menores
 request = HTTPXRequest(connection_pool_size=8, connect_timeout=10, read_timeout=10)
 
-VERSAO = "5.6.0"  # <--- MUDEI AQUI
+VERSAO = "5.7.0"  # <--- MUDEI AQUI
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def run_fake_server():
@@ -1462,19 +1462,60 @@ async def rst_c(upd, ctx):
 async def rst_y(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
+
+    # Deleta o personagem do banco
     del_p(uid)
     await q.answer("✅ Personagem deletado!", show_alert=True)
+
+    # Reseta o estado da conversação COMPLETAMENTE
     ctx.user_data.clear()
-    
-    cap = f"🎭 **ESCOLHA SUA CLASSE**\n{'━'*20}\n\n🛡️ **Guerreiro**\n└ HP Alto | Defesa Máxima\n└ ❤️ 250 HP | 🛡️ 18 DEF\n\n🏹 **Arqueiro**\n└ Crítico | Ataque Duplo\n└ ❤️ 120 HP | 💥 25% CRIT\n\n🔮 **Bruxa**\n└ Maldição | Dano Mágico\n└ ❤️ 150 HP | 💙 100 MANA\n\n🔥 **Mago**\n└ Explosão | Poder Máximo\n└ ❤️ 130 HP | 💙 120 MANA\n{'━'*20}"
-    kb = [[InlineKeyboardButton("🛡️ Guerreiro",callback_data="Guerreiro"),InlineKeyboardButton("🏹 Arqueiro",callback_data="Arqueiro")],[InlineKeyboardButton("🔮 Bruxa",callback_data="Bruxa"),InlineKeyboardButton("🔥 Mago",callback_data="Mago")]]
-    
+    await ctx.conversation.end()
+
+    # Cria uma NOVA mensagem de escolha de classe
+    cap = (
+        f"🎭 **ESCOLHA SUA CLASSE**\n"
+        f"{'━'*20}\n\n"
+        f"🛡️ **Guerreiro**\n"
+        f"└ HP Alto | Defesa Máxima\n"
+        f"└ ❤️ 250 HP | 🛡️ 18 DEF\n\n"
+        f"🏹 **Arqueiro**\n"
+        f"└ Crítico | Ataque Duplo\n"
+        f"└ ❤️ 120 HP | 💥 25% CRIT\n\n"
+        f"🔮 **Bruxa**\n"
+        f"└ Maldição | Dano Mágico\n"
+        f"└ ❤️ 150 HP | 💙 100 MANA\n\n"
+        f"🔥 **Mago**\n"
+        f"└ Explosão | Poder Máximo\n"
+        f"└ ❤️ 130 HP | 💙 120 MANA\n"
+        f"{'━'*20}"
+    )
+
+    kb = [
+        [
+            InlineKeyboardButton("🛡️ Guerreiro", callback_data="Guerreiro"),
+            InlineKeyboardButton("🏹 Arqueiro", callback_data="Arqueiro"),
+        ],
+        [
+            InlineKeyboardButton("🔮 Bruxa", callback_data="Bruxa"),
+            InlineKeyboardButton("🔥 Mago", callback_data="Mago"),
+        ],
+    ]
+
+    # Apaga a mensagem antiga
     try:
         await q.message.delete()
     except:
         pass
-    
-    await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["sel"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+
+    # Envia a nova tela de escolha de classe
+    await ctx.bot.send_photo(
+        chat_id=upd.effective_chat.id,
+        photo=IMAGENS["sel"],
+        caption=cap,
+        reply_markup=InlineKeyboardMarkup(kb),
+        parse_mode="Markdown",
+    )
+
     return ST_NM
 
 async def ch_lv(upd, ctx):
