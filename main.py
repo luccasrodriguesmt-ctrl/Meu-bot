@@ -755,16 +755,16 @@ async def bat_atk(upd, ctx):
     resultado = None
 
     if i_hp <= 0:
-    p_hp = max(1, p_hp)
-    c.execute("UPDATE players SET hp=%s, gold=gold+%s, exp=exp+%s WHERE id=%s", 
+        p_hp = max(1, p_hp)
+        c.execute("UPDATE players SET hp=%s, gold=gold+%s, exp=exp+%s WHERE id=%s", 
               (p_hp, dados['i_gold'], dados['i_exp'], uid))
     
     # PRIMEiro dá COMMIT pra garantir que os dados foram salvos
-    conn.commit()
+        conn.commit()
     
     # DEPOIS busca os dados ATUALIZADOS
-    c.execute("SELECT lv, exp, classe FROM players WHERE id=%s", (uid,))
-    player_atual = c.fetchone()
+        c.execute("SELECT lv, exp, classe FROM players WHERE id=%s", (uid,))
+        player_atual = c.fetchone()
     
     # E SÓ ENTÃO verifica nível
     if player_atual:
