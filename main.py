@@ -1,22 +1,39 @@
-import os, random, logging, threading, psycopg2
+import os, random, logging, threading, psycopg2, asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 from psycopg2.extras import RealDictCursor
 from urllib.parse import urlparse
-import asyncio
 from telegram.request import HTTPXRequest
+from cachetools import TTLCache
+import datetime
+import requests
 
-# Configurar timeouts menores
-request = HTTPXRequest(connection_pool_size=8, connect_timeout=10, read_timeout=10)
+# ===== CONFIGURAÇÕES DE PERFORMANCE =====
+VERSAO = "6.0.0"
+CACHE_TEMPO = 30
+CACHE_MAXIMO = 100
 
-VERSAO = "5.9.0"  # <--- MUDEI AQUI
+# Cache para dados de jogadores
+player_cache = TTLCache(maxsize=CACHE_MAXIMO, ttl=CACHE_TEMPO)
+combate_cache = TTLCache(maxsize=CACHE_MAXIMO, ttl=5)
+
+# Pool de conexões
+connection_pool = {}
+
+# Request com timeout otimizado
+request = HTTPXRequest(
+    connection_pool_size=20,
+    connect_timeout=5,
+    read_timeout=5,
+    pool_timeout=1.0
+)
+
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def run_fake_server():
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            # Se a requisição for para /health, responde rápido e SAI
             if self.path == '/health':
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
@@ -24,7 +41,6 @@ def run_fake_server():
                 self.wfile.write(b'OK')
                 return
             
-            # Se for qualquer outra coisa, mostra a página normal
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
@@ -40,7 +56,7 @@ def run_fake_server():
             """)
         
         def log_message(self, format, *args): 
-            pass  # Não loga nada pra não poluir
+            pass
     
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(('0.0.0.0', port), Handler)
@@ -54,11 +70,43 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# ===== FUNÇÕES DE CACHE =====
+def get_p_cached(uid):
+    if uid in player_cache:
+        return player_cache[uid]
+    p = get_p(uid)
+    if p:
+        player_cache[uid] = p
+    return p
+
+def get_combate_cached(uid):
+    if uid in combate_cache:
+        return combate_cache[uid]
+    cb = get_combate(uid)
+    if cb:
+        combate_cache[uid] = cb
+    return cb
+
+def invalidate_cache(uid):
+    if uid in player_cache:
+        del player_cache[uid]
+    if uid in combate_cache:
+        del combate_cache[uid]
+
+# ===== FUNÇÃO DO BANCO OTIMIZADA =====
 def get_db_connection():
+    thread_id = threading.get_ident()
+    if thread_id in connection_pool:
+        try:
+            connection_pool[thread_id].cursor().execute("SELECT 1")
+            return connection_pool[thread_id]
+        except:
+            pass
+    
     if DATABASE_URL:
-        return psycopg2.connect(DATABASE_URL, sslmode='require')
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
     else:
-        return psycopg2.connect(
+        conn = psycopg2.connect(
             host=os.getenv("PGHOST"),
             database=os.getenv("PGDATABASE"),
             user=os.getenv("PGUSER"),
@@ -66,7 +114,16 @@ def get_db_connection():
             port=os.getenv("PGPORT", 5432),
             sslmode='require'
         )
+    
+    connection_pool[thread_id] = conn
+    return conn
 
+def barra_rapida(a, m, c="🟦"):
+    if m <= 0: return "⬜"*10
+    p = max(0, min(a/m, 1))
+    return c*int(p*10) + "⬜"*(10-int(p*10))
+
+# ===== SEUS DADOS (IMAGENS, CLASSES, ETC) =====
 IMG = "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_n68a2ln68a2ln68a.png?raw=true"
 
 IMAGENS = {
@@ -152,7 +209,6 @@ IMAGENS = {
     }
 }
 
-# Atributos base por classe
 CLASSE_STATS = {
     "Guerreiro": {"hp": 250, "mana": 0, "atk": 8, "def": 18, "crit": 0, "double": False, "especial": None},
     "Arqueiro": {"hp": 120, "mana": 0, "atk": 10, "def": 5, "crit": 25, "double": True, "especial": None},
@@ -282,6 +338,7 @@ DUNGEONS = [
 
 ST_CL, ST_NM = range(2)
 
+# ===== FUNÇÕES DO BANCO =====
 def init_db():
     conn = get_db_connection()
     c = conn.cursor()
@@ -375,6 +432,7 @@ def get_heroi_oferta(uid):
     return h
 
 def del_p(uid):
+    invalidate_cache(uid)
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("DELETE FROM heroi_oferta WHERE pid = %s", (uid,))
@@ -394,6 +452,7 @@ def get_inv(uid):
     return {i['item']: i['qtd'] for i in inv}
 
 def add_inv(uid, item, qtd=1):
+    invalidate_cache(uid)
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("""INSERT INTO inv (pid, item, qtd) 
@@ -405,17 +464,13 @@ def add_inv(uid, item, qtd=1):
     conn.close()
 
 def use_inv(uid, item):
+    invalidate_cache(uid)
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("UPDATE inv SET qtd = qtd - 1 WHERE pid = %s AND item = %s", (uid, item))
     c.execute("DELETE FROM inv WHERE qtd <= 0")
     conn.commit()
     conn.close()
-
-def barra(a, m, c="🟦"):
-    if m <= 0: return "⬜"*10
-    p = max(0, min(a/m, 1))
-    return c*int(p*10) + "⬜"*(10-int(p*10))
 
 def img_c(c):
     return IMAGENS["classes"].get(c, IMG)
@@ -428,20 +483,22 @@ def deff(p):
     base = CLASSE_STATS[p['classe']]['def']
     return base + (p['lv']*2) + p['def_b']
 
+# ===== FUNÇÕES PRINCIPAIS OTIMIZADAS =====
 async def menu(upd, ctx, uid, txt=""):
-    p = get_p(uid)
+    p = get_p_cached(uid)
     if not p: 
         await start(upd, ctx)
         return
+    
     mi = MAPAS.get(p['mapa'], {})
     li = mi.get('loc', {}).get(p['local'], {})
     
-    cap = f"🎮 **{VERSAO}**\n{'━'*20}\n👤 **{p['nome']}** — *{p['classe']} Lv. {p['lv']}*\n🗺️ {mi.get('nome','?')} | 📍 {li.get('nome','?')}\n\n❤️ HP: {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n"
+    cap = f"🎮 **{VERSAO}**\n{'━'*20}\n👤 **{p['nome']}** — *{p['classe']} Lv. {p['lv']}*\n🗺️ {mi.get('nome','?')} | 📍 {li.get('nome','?')}\n\n❤️ HP: {p['hp']}/{p['hp_max']}\n└ {barra_rapida(p['hp'],p['hp_max'],'🟥')}\n"
     
     if p['mana_max'] > 0:
-        cap += f"💙 MANA: {p['mana']}/{p['mana_max']}\n└ {barra(p['mana'],p['mana_max'],'🟦')}\n"
+        cap += f"💙 MANA: {p['mana']}/{p['mana_max']}\n└ {barra_rapida(p['mana'],p['mana_max'],'🟦')}\n"
     
-    cap += f"✨ XP: {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100,'🟩')}\n\n⚔️ ATK: {atk(p)} | 🛡️ DEF: {deff(p)}\n"
+    cap += f"✨ XP: {p['exp']}/{p['lv']*100}\n└ {barra_rapida(p['exp'],p['lv']*100,'🟩')}\n\n⚔️ ATK: {atk(p)} | 🛡️ DEF: {deff(p)}\n"
     
     if p['crit'] > 0:
         cap += f"💥 CRIT: {p['crit']}%\n"
@@ -452,46 +509,48 @@ async def menu(upd, ctx, uid, txt=""):
     
     kb = [[InlineKeyboardButton("⚔️ Caçar",callback_data="cacar"),InlineKeyboardButton("🗺️ Mapas",callback_data="mapas")],[InlineKeyboardButton("🏘️ Locais",callback_data="locais"),InlineKeyboardButton("👤 Status",callback_data="perfil")],[InlineKeyboardButton("🏪 Loja",callback_data="loja"),InlineKeyboardButton("🎒 Inventário",callback_data="inv")],[InlineKeyboardButton("🏰 Dungeons",callback_data="dungs"),InlineKeyboardButton("⚙️ Config",callback_data="cfg")]]
     
-    # ===== CORREÇÃO AQUI =====
-    # ANTIGO: img = img_c(p['classe'])  (imagem do personagem)
-    # NOVO: pega a imagem do mapa atual
     img_mapa = IMAGENS["mapas"].get(p['mapa'], IMAGENS["classes"]["Guerreiro"])
-    # ==========================
     
-    if upd.callback_query:
-        try:
+    try:
+        if upd.callback_query:
             await upd.callback_query.edit_message_media(
                 media=InputMediaPhoto(media=img_mapa, caption=cap, parse_mode='Markdown'),
                 reply_markup=InlineKeyboardMarkup(kb)
             )
-        except:
-            try:
-                await upd.callback_query.message.delete()
-            except:
-                pass
+        else:
+            await upd.message.reply_photo(img_mapa, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    except:
+        try:
             await ctx.bot.send_photo(upd.effective_chat.id, img_mapa, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-    else:
-        await upd.message.reply_photo(img_mapa, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        except:
+            pass
+
 async def cacar(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
+    
     if not p:
         await q.answer("Crie personagem!", show_alert=True)
         return
+    
     if p['energia'] < 2:
         await q.answer("🪫 Sem energia!", show_alert=True)
         return
     
-    cb = get_combate(uid)
+    cb = get_combate_cached(uid)
     if cb:
         await q.answer()
         await mostrar_combate(upd, ctx, uid)
         return
     
+    await q.answer("🔍 Procurando inimigo...")
+    asyncio.create_task(processar_cacar(upd, ctx, uid, p))
+
+async def processar_cacar(upd, ctx, uid, p):
     inims = [n for n, d in INIMIGOS.items() if p['mapa'] in d['m']]
     if not inims:
-        await q.answer("Sem inimigos!", show_alert=True)
+        await menu(upd, ctx, uid, "❌ Sem inimigos!")
         return
     
     inm = random.choice(inims)
@@ -514,7 +573,7 @@ async def cacar(upd, ctx):
             conn.commit()
             conn.close()
             
-            await q.answer()
+            invalidate_cache(uid)
             await mostrar_oferta_heroi(upd, ctx, uid, heroi)
             return
     
@@ -529,7 +588,7 @@ async def cacar(upd, ctx):
     conn.commit()
     conn.close()
     
-    await q.answer()
+    invalidate_cache(uid)
     await mostrar_combate(upd, ctx, uid)
 
 async def mostrar_oferta_heroi(upd, ctx, uid, heroi):
@@ -578,6 +637,7 @@ async def heroi_aceitar(upd, ctx):
     conn.commit()
     conn.close()
     
+    invalidate_cache(uid)
     await q.answer()
     
     try:
@@ -609,6 +669,7 @@ async def heroi_recusar(upd, ctx):
     conn.commit()
     conn.close()
     
+    invalidate_cache(uid)
     await q.answer()
     
     try:
@@ -619,8 +680,8 @@ async def heroi_recusar(upd, ctx):
     await mostrar_combate(upd, ctx, uid)
 
 async def mostrar_combate(upd, ctx, uid):
-    p = get_p(uid)
-    cb = get_combate(uid)
+    p = get_p_cached(uid)
+    cb = get_combate_cached(uid)
     
     if not cb:
         await menu(upd, ctx, uid, "⚔️ Combate finalizado!")
@@ -628,10 +689,10 @@ async def mostrar_combate(upd, ctx, uid):
     
     inv = get_inv(uid)
     
-    cap = f"⚔️ **COMBATE - Turno {cb['turno']}**\n{'━'*20}\n🐺 **{cb['inimigo']}**\n\n❤️ Inimigo: {cb['i_hp']}/{cb['i_hp_max']}\n└ {barra(cb['i_hp'],cb['i_hp_max'],'🟥')}\n\n❤️ Você: {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n"
+    cap = f"⚔️ **COMBATE - Turno {cb['turno']}**\n{'━'*20}\n🐺 **{cb['inimigo']}**\n\n❤️ Inimigo: {cb['i_hp']}/{cb['i_hp_max']}\n└ {barra_rapida(cb['i_hp'],cb['i_hp_max'],'🟥')}\n\n❤️ Você: {p['hp']}/{p['hp_max']}\n└ {barra_rapida(p['hp'],p['hp_max'],'🟥')}\n"
     
     if p['mana_max'] > 0:
-        cap += f"💙 Mana: {p['mana']}/{p['mana_max']}\n└ {barra(p['mana'],p['mana_max'],'🟦')}\n"
+        cap += f"💙 Mana: {p['mana']}/{p['mana_max']}\n└ {barra_rapida(p['mana'],p['mana_max'],'🟦')}\n"
     
     if cb['heroi']:
         cap += f"\n⭐ **{cb['heroi']} ao seu lado!**\n"
@@ -681,27 +742,12 @@ async def mostrar_combate(upd, ctx, uid):
             img_monstro = IMAGENS["monstros"][tipo][mapa]
     
     try:
-        if upd.callback_query and cb['turno'] > 1:
-            await upd.callback_query.edit_message_caption(
-                caption=cap, 
-                reply_markup=InlineKeyboardMarkup(kb), 
-                parse_mode='Markdown'
-            )
-        else:
-            if upd.callback_query:
-                try:
-                    await upd.callback_query.message.delete()
-                except:
-                    pass
-            await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-    except Exception as e:
-        print(f"Erro ao mostrar combate: {e}")
+        await upd.callback_query.edit_message_media(
+            media=InputMediaPhoto(media=img_monstro, caption=cap, parse_mode='Markdown'),
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
+    except:
         try:
-            if upd.callback_query:
-                try:
-                    await upd.callback_query.message.delete()
-                except:
-                    pass
             await ctx.bot.send_photo(upd.effective_chat.id, img_monstro, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
         except:
             pass
@@ -709,8 +755,8 @@ async def mostrar_combate(upd, ctx, uid):
 async def bat_heroi(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
-    cb = get_combate(uid)
+    p = get_p_cached(uid)
+    cb = get_combate_cached(uid)
     
     if not cb or not cb['heroi']:
         await q.answer("Sem herói!", show_alert=True)
@@ -725,6 +771,8 @@ async def bat_heroi(upd, ctx):
     c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
     conn.commit()
     conn.close()
+    
+    invalidate_cache(uid)
     
     heroi_img = IMAGENS["classes"]["Guerreiro"]
     for mapa_herois in HEROIS.values():
@@ -743,8 +791,8 @@ async def bat_heroi(upd, ctx):
 async def bat_atk(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
-    cb = get_combate(uid)
+    p = get_p_cached(uid)
+    cb = get_combate_cached(uid)
     
     if not cb:
         await q.answer("Sem combate!")
@@ -791,6 +839,8 @@ async def bat_atk(upd, ctx):
         conn.commit()
         conn.close()
         
+        invalidate_cache(uid)
+        
         cap = f"🏆 **VITÓRIA!**\n{'━'*20}\n🐺 {cb['inimigo']} derrotado!\n\n📜 **Batalha:**\n" + "\n".join(log) + f"\n\n💰 +{cb['i_gold']} Gold\n✨ +{cb['i_xp']} XP\n{'━'*20}"
         kb = [[InlineKeyboardButton("🔙 Voltar",callback_data="voltar")]]
         
@@ -802,6 +852,8 @@ async def bat_atk(upd, ctx):
         c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
         conn.commit()
         conn.close()
+        
+        invalidate_cache(uid)
         
         cap = f"💀 **DERROTA!**\n{'━'*20}\n🐺 {cb['inimigo']} venceu!\n\n📜 **Batalha:**\n" + "\n".join(log) + f"\n\nVocê foi derrotado...\n{'━'*20}"
         kb = [[InlineKeyboardButton("🔙 Voltar",callback_data="voltar")]]
@@ -815,6 +867,7 @@ async def bat_atk(upd, ctx):
         conn.commit()
         conn.close()
         
+        invalidate_cache(uid)
         await mostrar_combate(upd, ctx, uid)
 
 async def bat_def(upd, ctx):
@@ -827,14 +880,15 @@ async def bat_def(upd, ctx):
     conn.commit()
     conn.close()
     
+    invalidate_cache(uid)
     await q.answer("🛡️ Defendendo!")
     await mostrar_combate(upd, ctx, uid)
 
 async def bat_esp(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
-    cb = get_combate(uid)
+    p = get_p_cached(uid)
+    cb = get_combate_cached(uid)
     
     if not cb:
         await q.answer("Sem combate!")
@@ -859,6 +913,7 @@ async def bat_esp(upd, ctx):
         conn.commit()
         conn.close()
         
+        invalidate_cache(uid)
         await q.answer(f"🔮 Maldição! -{dano} HP")
         
     elif esp == "explosão" and p['mana'] >= 30:
@@ -879,6 +934,7 @@ async def bat_esp(upd, ctx):
         conn.commit()
         conn.close()
         
+        invalidate_cache(uid)
         await q.answer(f"🔥 Explosão! -{dano} HP (25% máx)")
     else:
         await q.answer("Sem mana!", show_alert=True)
@@ -901,7 +957,7 @@ async def bat_pot_mp2(upd, ctx):
 async def usar_pocao(upd, ctx, item):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     inv = get_inv(uid)
     
     if item not in inv or inv[item] <= 0:
@@ -932,9 +988,11 @@ async def usar_pocao(upd, ctx, item):
         use_inv(uid, item)
         await q.answer(f"🔵 +{cons['valor']} Mana!")
     
-    cb = get_combate(uid)
+    invalidate_cache(uid)
+    
+    cb = get_combate_cached(uid)
     if cb:
-        p = get_p(uid)
+        p = get_p_cached(uid)
         dano_ini = max(1, cb['i_atk'] - deff(p) + random.randint(-2,2))
         novo_hp = p['hp'] - dano_ini
         
@@ -945,6 +1003,7 @@ async def usar_pocao(upd, ctx, item):
             c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
             conn.commit()
             conn.close()
+            invalidate_cache(uid)
             await menu(upd, ctx, uid, "💀 **Derrotado!**")
             return
         else:
@@ -952,6 +1011,7 @@ async def usar_pocao(upd, ctx, item):
             c.execute("UPDATE combate SET turno = turno + 1 WHERE pid = %s", (uid,))
             conn.commit()
             conn.close()
+            invalidate_cache(uid)
     
     await mostrar_combate(upd, ctx, uid)
 
@@ -965,11 +1025,12 @@ async def bat_fug(upd, ctx):
         c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
         conn.commit()
         conn.close()
+        invalidate_cache(uid)
         await q.answer("🏃 Fugiu!")
         await menu(upd, ctx, uid, "🏃 **Você fugiu!**")
     else:
-        p = get_p(uid)
-        cb = get_combate(uid)
+        p = get_p_cached(uid)
+        cb = get_combate_cached(uid)
         dano = max(1, cb['i_atk'] - deff(p) + random.randint(0,3))
         novo_hp = p['hp'] - dano
         
@@ -980,6 +1041,7 @@ async def bat_fug(upd, ctx):
             c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
             conn.commit()
             conn.close()
+            invalidate_cache(uid)
             await q.answer(f"❌ Falhou! -{dano} HP", show_alert=True)
             await menu(upd, ctx, uid, "💀 **Derrotado ao fugir!**")
         else:
@@ -987,13 +1049,14 @@ async def bat_fug(upd, ctx):
             c.execute("UPDATE combate SET turno = turno + 1 WHERE pid = %s", (uid,))
             conn.commit()
             conn.close()
+            invalidate_cache(uid)
             await q.answer(f"❌ Falhou! -{dano} HP", show_alert=True)
             await mostrar_combate(upd, ctx, uid)
 
 async def mapas(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     await q.answer()
     cap = f"🗺️ **MAPAS**\n{'━'*20}\n"
     kb = []
@@ -1017,7 +1080,7 @@ async def mapas(upd, ctx):
 async def viajar(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     mid = int(q.data.split('_')[1])
     
     m = MAPAS[mid]
@@ -1030,6 +1093,7 @@ async def viajar(upd, ctx):
     conn.commit()
     conn.close()
     
+    invalidate_cache(uid)
     await q.answer(f"🗺️ {m['nome']}!")
     
     try:
@@ -1042,7 +1106,7 @@ async def viajar(upd, ctx):
 async def locais(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     await q.answer()
     m = MAPAS.get(p['mapa'], {})
     cap = f"🏘️ **LOCAIS - {m.get('nome','')}**\n{'━'*20}\n"
@@ -1066,20 +1130,22 @@ async def locais(upd, ctx):
 async def ir_loc(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     lid = q.data.split('_')[1]
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("UPDATE players SET local = %s WHERE id = %s", (lid, uid))
     conn.commit()
     conn.close()
+    
+    invalidate_cache(uid)
     ln = MAPAS[p['mapa']]['loc'][lid]['nome']
     await q.answer(f"📍 {ln}")
     
     chave_local = f"{lid}_{p['mapa']}"
     img_local = IMAGENS["locais"].get(chave_local, IMAGENS["classes"]["Guerreiro"])
     
-    p = get_p(uid)
+    p = get_p_cached(uid)
     mi = MAPAS.get(p['mapa'], {})
     li = mi.get('loc', {}).get(p['local'], {})
     
@@ -1099,7 +1165,7 @@ async def ir_loc(upd, ctx):
 async def loja(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     await q.answer()
     
     loc = MAPAS[p['mapa']]['loc'][p['local']]
@@ -1128,7 +1194,7 @@ async def loja(upd, ctx):
 async def loja_normal(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     await q.answer()
     
     loc = MAPAS[p['mapa']]['loc'][p['local']]
@@ -1173,7 +1239,7 @@ async def loja_normal(upd, ctx):
 async def loja_contra(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     await q.answer()
     
     cap = f"🏴‍☠️ **MERCADO NEGRO**\n{'━'*20}\n💰 {p['gold']}\n⚠️ **-30% preço | 5% roubo**\n\n"
@@ -1215,7 +1281,7 @@ async def loja_contra(upd, ctx):
 async def comprar(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     
     parts = q.data.split('_')
     tipo_loja = parts[1]
@@ -1237,6 +1303,7 @@ async def comprar(upd, ctx):
             c.execute("UPDATE players SET gold = gold - %s WHERE id = %s", (preco, uid))
             conn.commit()
             conn.close()
+            invalidate_cache(uid)
             await q.answer("🏴‍☠️ Roubado!", show_alert=True)
             await loja(upd, ctx)
             return
@@ -1251,6 +1318,7 @@ async def comprar(upd, ctx):
                      (preco, item, eq['def'], uid))
         conn.commit()
         conn.close()
+        invalidate_cache(uid)
         await q.answer(f"✅ {item}!", show_alert=True)
         await menu(upd, ctx, uid, f"✅ **{item}!**")
         
@@ -1282,7 +1350,7 @@ async def comprar(upd, ctx):
 async def confirmar_compra(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     
     parts = q.data.split('_')
     tipo_loja = parts[1]
@@ -1306,6 +1374,7 @@ async def confirmar_compra(upd, ctx):
         c.execute("UPDATE players SET gold = gold - %s WHERE id = %s", (preco, uid))
         conn.commit()
         conn.close()
+        invalidate_cache(uid)
         await q.answer("🏴‍☠️ Roubado!", show_alert=True)
         await loja(upd, ctx)
         return
@@ -1316,6 +1385,7 @@ async def confirmar_compra(upd, ctx):
     conn.commit()
     conn.close()
     add_inv(uid, item, 1)
+    invalidate_cache(uid)
     await q.answer(f"✅ {item}!", show_alert=True)
     
     if tipo_loja == "normal":
@@ -1326,7 +1396,7 @@ async def confirmar_compra(upd, ctx):
 async def inv(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     await q.answer()
     
     inv_data = get_inv(uid)
@@ -1350,7 +1420,7 @@ async def inv(upd, ctx):
 async def dungs(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     await q.answer()
     cap = f"🏰 **DUNGEONS**\n{'━'*20}\n"
     kb = []
@@ -1370,7 +1440,7 @@ async def dungs(upd, ctx):
 async def dung(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     did = int(q.data.split('_')[1])
     d = DUNGEONS[did]
     if p['energia'] < 10:
@@ -1409,6 +1479,7 @@ async def dung(upd, ctx):
         c.execute("INSERT INTO dung (pid, did) VALUES (%s, %s) ON CONFLICT (pid, did) DO NOTHING", (uid, did))
         conn.commit()
         conn.close()
+        invalidate_cache(uid)
         res = f"🏆 **VIT!**\n💰 +{d['g']} | ✨ +{d['xp']}"
     else:
         conn = get_db_connection()
@@ -1416,9 +1487,10 @@ async def dung(upd, ctx):
         c.execute("UPDATE players SET energia = energia - 10, hp = 1 WHERE id = %s", (uid,))
         conn.commit()
         conn.close()
+        invalidate_cache(uid)
         res = "💀 **DERROT!**"
     
-    cap = f"🏰 **{d['nome']}**\n{'━'*20}\n👹 {d['boss']}\n\n❤️ Boss: {max(0,bhp)}/{d['bhp']}\n└ {barra(max(0,bhp),d['bhp'],'🟥')}\n\n❤️ Você: {php}/{p['hp_max']}\n└ {barra(php,p['hp_max'],'🟥')}\n\n📜:\n" + "\n".join(log[-6:]) + f"\n\n{res}\n{'━'*20}"
+    cap = f"🏰 **{d['nome']}**\n{'━'*20}\n👹 {d['boss']}\n\n❤️ Boss: {max(0,bhp)}/{d['bhp']}\n└ {barra_rapida(max(0,bhp),d['bhp'],'🟥')}\n\n❤️ Você: {php}/{p['hp_max']}\n└ {barra_rapida(php,p['hp_max'],'🟥')}\n\n📜:\n" + "\n".join(log[-6:]) + f"\n\n{res}\n{'━'*20}"
     kb = [[InlineKeyboardButton("🔙 Voltar",callback_data="voltar")]]
     
     try: await q.message.delete()
@@ -1428,15 +1500,15 @@ async def dung(upd, ctx):
 async def perfil(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     await q.answer()
     
-    cap = f"👤 **PERFIL**\n{'━'*20}\n📛 {p['nome']}\n🎭 {p['classe']}\n⭐ Lv {p['lv']}\n\n❤️ {p['hp']}/{p['hp_max']}\n└ {barra(p['hp'],p['hp_max'],'🟥')}\n"
+    cap = f"👤 **PERFIL**\n{'━'*20}\n📛 {p['nome']}\n🎭 {p['classe']}\n⭐ Lv {p['lv']}\n\n❤️ {p['hp']}/{p['hp_max']}\n└ {barra_rapida(p['hp'],p['hp_max'],'🟥')}\n"
     
     if p['mana_max'] > 0:
-        cap += f"💙 {p['mana']}/{p['mana_max']}\n└ {barra(p['mana'],p['mana_max'],'🟦')}\n"
+        cap += f"💙 {p['mana']}/{p['mana_max']}\n└ {barra_rapida(p['mana'],p['mana_max'],'🟦')}\n"
     
-    cap += f"✨ {p['exp']}/{p['lv']*100}\n└ {barra(p['exp'],p['lv']*100,'🟩')}\n\n💰 {p['gold']}\n⚡ {p['energia']}/{p['energia_max']}\n⚔️ {atk(p)}\n🛡️ {deff(p)}\n"
+    cap += f"✨ {p['exp']}/{p['lv']*100}\n└ {barra_rapida(p['exp'],p['lv']*100,'🟩')}\n\n💰 {p['gold']}\n⚡ {p['energia']}/{p['energia_max']}\n⚔️ {atk(p)}\n🛡️ {deff(p)}\n"
     
     if p['crit'] > 0:
         cap += f"💥 Crítico: {p['crit']}%\n"
@@ -1458,7 +1530,7 @@ async def perfil(upd, ctx):
 async def cfg(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     await q.answer()
     cap = f"⚙️ **CONFIG**\n{'━'*20}\n🔄 Reset\n⚡ Lv MAX\n💰 Gold MAX\n{'━'*20}"
     kb = [[InlineKeyboardButton("🔄 Reset",callback_data="rst_c")],[InlineKeyboardButton("⚡ Lv MAX",callback_data="ch_lv")],[InlineKeyboardButton("💰 Gold MAX",callback_data="ch_g")],[InlineKeyboardButton("🔙 Voltar",callback_data="voltar")]]
@@ -1471,7 +1543,7 @@ async def cfg(upd, ctx):
 async def rst_c(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     await q.answer()
     cap = f"⚠️ **DELETAR?**\n{'━'*20}\n❌ IRREVERSÍVEL\n{'━'*20}"
     kb = [[InlineKeyboardButton("✅ SIM",callback_data="rst_y")],[InlineKeyboardButton("❌ NÃO",callback_data="cfg")]]
@@ -1481,37 +1553,18 @@ async def rst_c(upd, ctx):
         pass
     await ctx.bot.send_photo(upd.effective_chat.id, img_c(p['classe']), caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
-# ===== FUNÇÃO rst_y COMPLETA =====
 async def rst_y(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
 
-    # Deleta o personagem do banco
+    invalidate_cache(uid)
     del_p(uid)
     await q.answer("✅ Personagem deletado!", show_alert=True)
 
-    # Reseta o estado da conversação COMPLETAMENTE
     ctx.user_data.clear()
     await ctx.conversation.end()
 
-    # Cria uma NOVA mensagem de escolha de classe
-    cap = (
-        f"🎭 **ESCOLHA SUA CLASSE**\n"
-        f"{'━'*20}\n\n"
-        f"🛡️ **Guerreiro**\n"
-        f"└ HP Alto | Defesa Máxima\n"
-        f"└ ❤️ 250 HP | 🛡️ 18 DEF\n\n"
-        f"🏹 **Arqueiro**\n"
-        f"└ Crítico | Ataque Duplo\n"
-        f"└ ❤️ 120 HP | 💥 25% CRIT\n\n"
-        f"🔮 **Bruxa**\n"
-        f"└ Maldição | Dano Mágico\n"
-        f"└ ❤️ 150 HP | 💙 100 MANA\n\n"
-        f"🔥 **Mago**\n"
-        f"└ Explosão | Poder Máximo\n"
-        f"└ ❤️ 130 HP | 💙 120 MANA\n"
-        f"{'━'*20}"
-    )
+    cap = "🎭 **ESCOLHA SUA CLASSE**\n" + '━'*20 + "\n\n🛡️ **Guerreiro**\n└ HP Alto | Defesa Máxima\n└ ❤️ 250 HP | 🛡️ 18 DEF\n\n🏹 **Arqueiro**\n└ Crítico | Ataque Duplo\n└ ❤️ 120 HP | 💥 25% CRIT\n\n🔮 **Bruxa**\n└ Maldição | Dano Mágico\n└ ❤️ 150 HP | 💙 100 MANA\n\n🔥 **Mago**\n└ Explosão | Poder Máximo\n└ ❤️ 130 HP | 💙 120 MANA\n" + '━'*20
 
     kb = [
         [
@@ -1524,13 +1577,11 @@ async def rst_y(upd, ctx):
         ],
     ]
 
-    # Apaga a mensagem antiga
     try:
         await q.message.delete()
     except:
         pass
-
-    # Envia a nova tela de escolha de classe
+    
     await ctx.bot.send_photo(
         chat_id=upd.effective_chat.id,
         photo=IMAGENS["sel"],
@@ -1544,7 +1595,7 @@ async def rst_y(upd, ctx):
 async def ch_lv(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     
     conn = get_db_connection()
     c = conn.cursor()
@@ -1554,17 +1605,19 @@ async def ch_lv(upd, ctx):
                  (hp_max, hp_max, mana_max, mana_max, uid))
     conn.commit()
     conn.close()
+    invalidate_cache(uid)
     await q.answer("⚡ 99!", show_alert=True)
     await menu(upd, ctx, uid, "⚡ **Lv 99!**")
 
 async def ch_g(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    conn = get_db_connection()  # SEM INTERROGAÇÃO!
+    conn = get_db_connection()
     c = conn.cursor()
     c.execute("UPDATE players SET gold = 999999 WHERE id = %s", (uid,))
     conn.commit()
     conn.close()
+    invalidate_cache(uid)
     await q.answer("💰 999,999!", show_alert=True)
     await menu(upd, ctx, uid, "💰 **999,999!**")
 
@@ -1578,26 +1631,25 @@ async def voltar(upd, ctx):
     conn.commit()
     conn.close()
     
+    invalidate_cache(uid)
     await q.answer()
     await menu(upd, ctx, uid)
 
 async def start(upd, ctx):
     uid = upd.effective_user.id
-    p = get_p(uid)
+    p = get_p_cached(uid)
     if p:
         await menu(upd, ctx, uid)
         return ConversationHandler.END
+    
     ctx.user_data.clear()
     
-    # ===== FORÇA BRUTA =====
-    import datetime
     agora = datetime.datetime.now().strftime("%H:%M:%S")
     cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nVersão: `{VERSAO} - {agora}`\n\n🎮 **NOVIDADES:**\n⚔️ Combate Manual\n🎭 Classes Únicas\n💊 Sistema de Consumíveis\n🔮 Habilidades Especiais\n💙 Sistema de Mana\n{'━'*20}"
-    # ========================
     
     kb = [[InlineKeyboardButton("🎮 Começar",callback_data="ir_cls")]]
     await upd.message.reply_photo(
-        IMAGENS["logo"] + f"?v={VERSAO}_{agora}",  # Quebra cache TOTAL
+        IMAGENS["logo"] + f"?v={VERSAO}_{agora}",
         caption=cap, 
         reply_markup=InlineKeyboardMarkup(kb), 
         parse_mode='Markdown'
@@ -1662,6 +1714,8 @@ async def fin(upd, ctx):
     conn.commit()
     conn.close()
     
+    invalidate_cache(uid)
+    
     await upd.message.reply_text(f"✨ **{nome}!**\nBem-vindo, {classe}!")
     await menu(upd, ctx, uid)
     return ConversationHandler.END
@@ -1670,14 +1724,11 @@ def main():
     init_db()
     token = os.getenv("TELEGRAM_TOKEN")
     
-    # Forçar o Telegram a esquecer conexões antigas
-    import requests
     try:
         requests.get(f"https://api.telegram.org/bot{token}/deleteWebhook?drop_pending_updates=true")
     except:
         pass
     
-    # Criar app com request configurado
     app = ApplicationBuilder().token(token).request(request).build()
     
     conv = ConversationHandler(
