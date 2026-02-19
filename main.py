@@ -213,23 +213,27 @@ HEROIS = {
 }
 
 INIMIGOS = {
-    "Goblin da Planície": {"hp": 100, "atk": 15, "def": 8, "xp": 25, "gold": 15, "desc": "Goblin verde", "m": [1], "tipo": "Goblin"},
-    "Goblin da Floresta": {"hp": 300, "atk": 45, "def": 24, "xp": 75, "gold": 45, "desc": "Goblin feroz", "m": [2], "tipo": "Goblin"},
-    "Goblin da Caverna": {"hp": 900, "atk": 135, "def": 72, "xp": 225, "gold": 135, "desc": "Goblin sombrio", "m": [3], "tipo": "Goblin"},
-    "Lobo da Planície": {"hp": 150, "atk": 22, "def": 12, "xp": 40, "gold": 25, "desc": "Lobo selvagem", "m": [1], "tipo": "Lobo"},
-    "Lobo da Floresta": {"hp": 450, "atk": 66, "def": 36, "xp": 120, "gold": 75, "desc": "Lobo alfa", "m": [2], "tipo": "Lobo"},
-    "Lobo da Caverna": {"hp": 1350, "atk": 198, "def": 108, "xp": 360, "gold": 225, "desc": "Lobo das sombras", "m": [3], "tipo": "Lobo"},
-    "Orc da Planície": {"hp": 280, "atk": 38, "def": 20, "xp": 80, "gold": 60, "desc": "Orc guerreiro", "m": [1, 2], "tipo": "Orc"},
-    "Orc da Floresta": {"hp": 840, "atk": 114, "def": 60, "xp": 240, "gold": 180, "desc": "Orc berserker", "m": [2, 3], "tipo": "Orc"},
-    "Orc da Caverna": {"hp": 2520, "atk": 342, "def": 180, "xp": 720, "gold": 540, "desc": "Orc brutal", "m": [3], "tipo": "Orc"},
-    "Esqueleto da Planície": {"hp": 220, "atk": 30, "def": 15, "xp": 70, "gold": 50, "desc": "Esqueleto guerreiro", "m": [1, 2], "tipo": "Esqueleto"},
-    "Esqueleto da Floresta": {"hp": 660, "atk": 90, "def": 45, "xp": 210, "gold": 150, "desc": "Esqueleto ancestral", "m": [2, 3], "tipo": "Esqueleto"},
-    "Esqueleto da Caverna": {"hp": 1980, "atk": 270, "def": 135, "xp": 630, "gold": 450, "desc": "Esqueleto rei", "m": [3], "tipo": "Esqueleto"},
-    "Dragão da Planície": {"hp": 600, "atk": 70, "def": 35, "xp": 300, "gold": 250, "desc": "Dragão jovem", "m": [1], "tipo": "Dragão"},
-    "Dragão da Floresta": {"hp": 1800, "atk": 210, "def": 105, "xp": 900, "gold": 750, "desc": "Dragão ancestral", "m": [2], "tipo": "Dragão"},
-    "Dragão da Caverna": {"hp": 5400, "atk": 630, "def": 315, "xp": 2700, "gold": 2250, "desc": "Dragão primordial", "m": [3], "tipo": "Dragão"}
+    # ===== PLANÍCIE (FÁCIL) =====
+    "Goblin da Planície": {"hp": 60, "atk": 8, "def": 3, "xp": 15, "gold": 8, "desc": "Goblin verde", "m": [1], "tipo": "Goblin"},
+    "Lobo da Planície": {"hp": 80, "atk": 10, "def": 4, "xp": 20, "gold": 12, "desc": "Lobo selvagem", "m": [1], "tipo": "Lobo"},
+    "Orc da Planície": {"hp": 120, "atk": 14, "def": 6, "xp": 30, "gold": 20, "desc": "Orc guerreiro", "m": [1, 2], "tipo": "Orc"},
+    "Esqueleto da Planície": {"hp": 100, "atk": 12, "def": 5, "xp": 25, "gold": 15, "desc": "Esqueleto guerreiro", "m": [1, 2], "tipo": "Esqueleto"},
+    "Dragão da Planície": {"hp": 200, "atk": 18, "def": 8, "xp": 50, "gold": 40, "desc": "Dragão jovem", "m": [1], "tipo": "Dragão"},
+    
+    # ===== FLORESTA (MÉDIO) =====
+    "Goblin da Floresta": {"hp": 180, "atk": 22, "def": 10, "xp": 45, "gold": 25, "desc": "Goblin feroz", "m": [2], "tipo": "Goblin"},
+    "Lobo da Floresta": {"hp": 250, "atk": 28, "def": 14, "xp": 60, "gold": 35, "desc": "Lobo alfa", "m": [2], "tipo": "Lobo"},
+    "Orc da Floresta": {"hp": 350, "atk": 35, "def": 18, "xp": 90, "gold": 55, "desc": "Orc berserker", "m": [2, 3], "tipo": "Orc"},
+    "Esqueleto da Floresta": {"hp": 300, "atk": 32, "def": 16, "xp": 75, "gold": 45, "desc": "Esqueleto ancestral", "m": [2, 3], "tipo": "Esqueleto"},
+    "Dragão da Floresta": {"hp": 500, "atk": 45, "def": 22, "xp": 150, "gold": 120, "desc": "Dragão ancestral", "m": [2], "tipo": "Dragão"},
+    
+    # ===== CAVERNA (DIFÍCIL) =====
+    "Goblin da Caverna": {"hp": 400, "atk": 48, "def": 24, "xp": 120, "gold": 70, "desc": "Goblin sombrio", "m": [3], "tipo": "Goblin"},
+    "Lobo da Caverna": {"hp": 550, "atk": 60, "def": 30, "xp": 160, "gold": 95, "desc": "Lobo das sombras", "m": [3], "tipo": "Lobo"},
+    "Orc da Caverna": {"hp": 750, "atk": 75, "def": 38, "xp": 240, "gold": 140, "desc": "Orc brutal", "m": [3], "tipo": "Orc"},
+    "Esqueleto da Caverna": {"hp": 650, "atk": 68, "def": 34, "xp": 200, "gold": 120, "desc": "Esqueleto rei", "m": [3], "tipo": "Esqueleto"},
+    "Dragão da Caverna": {"hp": 1200, "atk": 90, "def": 45, "xp": 400, "gold": 300, "desc": "Dragão primordial", "m": [3], "tipo": "Dragão"}
 }
-
 EQUIPS = {
     "Espada Enferrujada": {"t": "arma", "atk": 5, "p": 50, "lv": 1, "cls": ["Guerreiro"]},
     "Espada de Ferro": {"t": "arma", "atk": 15, "p": 200, "lv": 5, "cls": ["Guerreiro"]},
