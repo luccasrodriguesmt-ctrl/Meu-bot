@@ -10,7 +10,7 @@ from telegram.request import HTTPXRequest
 # Configurar timeouts menores
 request = HTTPXRequest(connection_pool_size=8, connect_timeout=10, read_timeout=10)
 
-VERSAO = "5.7.0"  # <--- MUDEI AQUI
+VERSAO = "5.8.0"  # <--- MUDEI AQUI
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def run_fake_server():
@@ -430,25 +430,27 @@ async def menu(upd, ctx, uid, txt=""):
     cap += f"💰 {p['gold']} | ⚡ {p['energia']}/{p['energia_max']}\n{'━'*20}\n{txt}"
     
     kb = [[InlineKeyboardButton("⚔️ Caçar",callback_data="cacar"),InlineKeyboardButton("🗺️ Mapas",callback_data="mapas")],[InlineKeyboardButton("🏘️ Locais",callback_data="locais"),InlineKeyboardButton("👤 Status",callback_data="perfil")],[InlineKeyboardButton("🏪 Loja",callback_data="loja"),InlineKeyboardButton("🎒 Inventário",callback_data="inv")],[InlineKeyboardButton("🏰 Dungeons",callback_data="dungs"),InlineKeyboardButton("⚙️ Config",callback_data="cfg")]]
-    img = img_c(p['classe'])
+    
+    # ===== CORREÇÃO AQUI =====
+    # ANTIGO: img = img_c(p['classe'])  (imagem do personagem)
+    # NOVO: pega a imagem do mapa atual
+    img_mapa = IMAGENS["mapas"].get(p['mapa'], IMAGENS["classes"]["Guerreiro"])
+    # ==========================
     
     if upd.callback_query:
-        # EDITAR a mensagem em vez de deletar e criar nova
         try:
             await upd.callback_query.edit_message_media(
-                media=InputMediaPhoto(media=img, caption=cap, parse_mode='Markdown'),
+                media=InputMediaPhoto(media=img_mapa, caption=cap, parse_mode='Markdown'),
                 reply_markup=InlineKeyboardMarkup(kb)
             )
         except:
-            # Se não conseguir editar, aí sim deleta e cria nova
             try:
                 await upd.callback_query.message.delete()
             except:
                 pass
-            await ctx.bot.send_photo(upd.effective_chat.id, img, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+            await ctx.bot.send_photo(upd.effective_chat.id, img_mapa, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     else:
-        await upd.message.reply_photo(img, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-
+        await upd.message.reply_photo(img_mapa, caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 async def cacar(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
