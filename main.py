@@ -10,7 +10,7 @@ from telegram.request import HTTPXRequest
 # Configurar timeouts menores
 request = HTTPXRequest(connection_pool_size=8, connect_timeout=10, read_timeout=10)
 
-VERSAO = "5.5.0"  # <--- MUDEI AQUI
+VERSAO = "5.6.0"  # <--- MUDEI AQUI
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def run_fake_server():
@@ -1458,21 +1458,24 @@ async def rst_c(upd, ctx):
         pass
     await ctx.bot.send_photo(upd.effective_chat.id, img_c(p['classe']), caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
+# ===== FUNÇÃO rst_y COMPLETA =====
 async def rst_y(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
     del_p(uid)
     await q.answer("✅ Personagem deletado!", show_alert=True)
-    
     ctx.user_data.clear()
     
-    # INVÉS DE MOSTRAR TELA MORTA, CHAMA O START DIRETO!
-    await start(upd, ctx)
+    cap = f"🎭 **ESCOLHA SUA CLASSE**\n{'━'*20}\n\n🛡️ **Guerreiro**\n└ HP Alto | Defesa Máxima\n└ ❤️ 250 HP | 🛡️ 18 DEF\n\n🏹 **Arqueiro**\n└ Crítico | Ataque Duplo\n└ ❤️ 120 HP | 💥 25% CRIT\n\n🔮 **Bruxa**\n└ Maldição | Dano Mágico\n└ ❤️ 150 HP | 💙 100 MANA\n\n🔥 **Mago**\n└ Explosão | Poder Máximo\n└ ❤️ 130 HP | 💙 120 MANA\n{'━'*20}"
+    kb = [[InlineKeyboardButton("🛡️ Guerreiro",callback_data="Guerreiro"),InlineKeyboardButton("🏹 Arqueiro",callback_data="Arqueiro")],[InlineKeyboardButton("🔮 Bruxa",callback_data="Bruxa"),InlineKeyboardButton("🔥 Mago",callback_data="Mago")]]
     
-    # NÃO PRECISA DESSAS LINHAS:
-    # cap = f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\nVersão: `{VERSAO}`\n{'━'*20}"
-    # kb = [[InlineKeyboardButton("🎮 Começar",callback_data="ir_cls")]]
-    # await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["logo"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    try:
+        await q.message.delete()
+    except:
+        pass
+    
+    await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["sel"], caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    return ST_NM
 
 async def ch_lv(upd, ctx):
     q = upd.callback_query
@@ -1493,7 +1496,7 @@ async def ch_lv(upd, ctx):
 async def ch_g(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    conn = get_db_connection()
+    conn = get_db_connection()  # SEM INTERROGAÇÃO!
     c = conn.cursor()
     c.execute("UPDATE players SET gold = 999999 WHERE id = %s", (uid,))
     conn.commit()
