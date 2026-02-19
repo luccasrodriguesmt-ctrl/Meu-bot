@@ -1648,17 +1648,21 @@ async def fin(upd, ctx):
     
     conn = get_db_connection()
     c = conn.cursor()
+    
+    # CORRIGIDO: valores separados corretamente
     c.execute("""INSERT INTO players 
-                    (id, nome, classe, hp, hp_max, mana, mana_max, lv, exp, gold, energia, energia_max, mapa, local, arma, arm, atk_b, def_b, crit, double_atk)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, 1, 0, 100, 20, 20, 1, 'cap', NULL, NULL, 0, 0, %s, %s)
-                    ON CONFLICT (id) DO UPDATE SET
-                    nome = EXCLUDED.nome, classe = EXCLUDED.classe, hp = EXCLUDED.hp, hp_max = EXCLUDED.hp_max,
-                    mana = EXCLUDED.mana, mana_max = EXCLUDED.mana_max, lv = EXCLUDED.lv, exp = EXCLUDED.exp,
-                    gold = EXCLUDED.gold, energia = EXCLUDED.energia, energia_max = EXCLUDED.energia_max,
-                    mapa = EXCLUDED.mapa, local = EXCLUDED.local, arma = EXCLUDED.arma, arm = EXCLUDED.arm,
-                    atk_b = EXCLUDED.atk_b, def_b = EXCLUDED.def_b, crit = EXCLUDED.crit, double_atk = EXCLUDED.double_atk""", 
-                 (uid, nome, classe, stats['hp'], stats['hp'], stats['mana'], stats['mana'],
-                  stats['crit'], 1 if stats['double'] else 0))
+                (id, nome, classe, hp, hp_max, mana, mana_max, lv, exp, gold, energia, energia_max, mapa, local, arma, arm, atk_b, def_b, crit, double_atk)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET
+                nome = EXCLUDED.nome, classe = EXCLUDED.classe, hp = EXCLUDED.hp, hp_max = EXCLUDED.hp_max,
+                mana = EXCLUDED.mana, mana_max = EXCLUDED.mana_max, lv = EXCLUDED.lv, exp = EXCLUDED.exp,
+                gold = EXCLUDED.gold, energia = EXCLUDED.energia, energia_max = EXCLUDED.energia_max,
+                mapa = EXCLUDED.mapa, local = EXCLUDED.local, arma = EXCLUDED.arma, arm = EXCLUDED.arm,
+                atk_b = EXCLUDED.atk_b, def_b = EXCLUDED.def_b, crit = EXCLUDED.crit, double_atk = EXCLUDED.double_atk""",
+                (uid, nome, classe, stats['hp'], stats['hp'], stats['mana'], stats['mana'],
+                 1, 0, 100, 20, 20, 1, 'cap', None, None, 0, 0,
+                 stats['crit'], 1 if stats['double'] else 0))
+    
     conn.commit()
     conn.close()
     
