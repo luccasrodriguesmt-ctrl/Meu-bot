@@ -1,9 +1,11 @@
-import os, random, sqlite3, logging, threading
+import os, random, logging, threading, psycopg2
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
+from psycopg2.extras import RealDictCursor
+from urllib.parse import urlparse
 
-VERSAO = "3.2.0"
+VERSAO = "4.0.0"
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 def run_fake_server():
@@ -21,7 +23,25 @@ def run_fake_server():
 
 threading.Thread(target=run_fake_server, daemon=True).start()
 
-DB_FILE = "rpg_game.db"
+# Configuração PostgreSQL
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+def get_db_connection():
+    if DATABASE_URL:
+        return psycopg2.connect(DATABASE_URL, sslmode='require')
+    else:
+        # Fallback para variáveis individuais
+        return psycopg2.connect(
+            host=os.getenv("PGHOST"),
+            database=os.getenv("PGDATABASE"),
+            user=os.getenv("PGUSER"),
+            password=os.getenv("PGPASSWORD"),
+            port=os.getenv("PGPORT", 5432),
+            sslmode='require'
+        )
+
 IMG = "https://github.com/luccasrodriguesmt-ctrl/Meu-bot/blob/main/images/Gemini_Generated_Image_n68a2ln68a2ln68a.png?raw=true"
 
 IMAGENS = {
@@ -118,7 +138,7 @@ CLASSE_STATS = {
     "Guerreiro": {"hp": 250, "mana": 0, "atk": 8, "def": 18, "crit": 0, "double": False, "especial": None},
     "Arqueiro": {"hp": 120, "mana": 0, "atk": 10, "def": 5, "crit": 25, "double": True, "especial": None},
     "Bruxa": {"hp": 150, "mana": 100, "atk": 9, "def": 8, "crit": 10, "double": False, "especial": "maldição"},
-    "Mago": {"hp": 130, "mana": 120, "atk": 6, "def": 6, "crit": 15, "double": False, "especial": "explosão"}  # Reduzido de 12 para 6
+    "Mago": {"hp": 130, "mana": 120, "atk": 6, "def": 6, "crit": 15, "double": False, "especial": "explosão"}
 }
 
 MAPAS = {
@@ -266,76 +286,139 @@ DUNGEONS = [
 ST_CL, ST_NM = range(2)
 
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_db_connection()
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS players 
-                 (id INTEGER PRIMARY KEY, nome TEXT, classe TEXT, hp INTEGER, hp_max INTEGER, 
-                  mana INTEGER DEFAULT 0, mana_max INTEGER DEFAULT 0,
-                  lv INTEGER, exp INTEGER, gold INTEGER, energia INTEGER, energia_max INTEGER,
-                  mapa INTEGER DEFAULT 1, local TEXT DEFAULT 'cap',
-                  arma TEXT, arm TEXT, atk_b INTEGER DEFAULT 0, def_b INTEGER DEFAULT 0,
-                  crit INTEGER DEFAULT 0, double_atk INTEGER DEFAULT 0)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS inv (pid INTEGER, item TEXT, qtd INTEGER DEFAULT 1, PRIMARY KEY (pid, item))''')
-    c.execute('''CREATE TABLE IF NOT EXISTS dung (pid INTEGER, did INTEGER, PRIMARY KEY (pid, did))''')
-    c.execute('''CREATE TABLE IF NOT EXISTS combate 
-                 (pid INTEGER PRIMARY KEY, inimigo TEXT, i_hp INTEGER, i_hp_max INTEGER,
-                  i_atk INTEGER, i_def INTEGER, i_xp INTEGER, i_gold INTEGER, turno INTEGER DEFAULT 1,
-                  defendendo INTEGER DEFAULT 0, heroi TEXT DEFAULT NULL, tipo_monstro TEXT, mapa_monstro INTEGER)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS heroi_oferta 
-                 (pid INTEGER PRIMARY KEY, heroi_nome TEXT, heroi_img TEXT, 
-                  inimigo TEXT, i_hp INTEGER, i_atk INTEGER, i_def INTEGER, i_xp INTEGER, i_gold INTEGER,
-                  tipo_monstro TEXT, mapa_monstro INTEGER)''')
+    
+    # Criar tabela players
+    c.execute('''CREATE TABLE IF NOT EXISTS players (
+                 id INTEGER PRIMARY KEY, 
+                 nome TEXT, 
+                 classe TEXT, 
+                 hp INTEGER, 
+                 hp_max INTEGER,
+                 mana INTEGER DEFAULT 0, 
+                 mana_max INTEGER DEFAULT 0,
+                 lv INTEGER, 
+                 exp INTEGER, 
+                 gold INTEGER, 
+                 energia INTEGER, 
+                 energia_max INTEGER,
+                 mapa INTEGER DEFAULT 1, 
+                 local TEXT DEFAULT 'cap',
+                 arma TEXT, 
+                 arm TEXT, 
+                 atk_b INTEGER DEFAULT 0, 
+                 def_b INTEGER DEFAULT 0,
+                 crit INTEGER DEFAULT 0, 
+                 double_atk INTEGER DEFAULT 0)''')
+    
+    # Criar tabela inv
+    c.execute('''CREATE TABLE IF NOT EXISTS inv (
+                 pid INTEGER, 
+                 item TEXT, 
+                 qtd INTEGER DEFAULT 1, 
+                 PRIMARY KEY (pid, item))''')
+    
+    # Criar tabela dung
+    c.execute('''CREATE TABLE IF NOT EXISTS dung (
+                 pid INTEGER, 
+                 did INTEGER, 
+                 PRIMARY KEY (pid, did))''')
+    
+    # Criar tabela combate
+    c.execute('''CREATE TABLE IF NOT EXISTS combate (
+                 pid INTEGER PRIMARY KEY, 
+                 inimigo TEXT, 
+                 i_hp INTEGER, 
+                 i_hp_max INTEGER,
+                 i_atk INTEGER, 
+                 i_def INTEGER, 
+                 i_xp INTEGER, 
+                 i_gold INTEGER, 
+                 turno INTEGER DEFAULT 1,
+                 defendendo INTEGER DEFAULT 0, 
+                 heroi TEXT DEFAULT NULL, 
+                 tipo_monstro TEXT, 
+                 mapa_monstro INTEGER)''')
+    
+    # Criar tabela heroi_oferta
+    c.execute('''CREATE TABLE IF NOT EXISTS heroi_oferta (
+                 pid INTEGER PRIMARY KEY, 
+                 heroi_nome TEXT, 
+                 heroi_img TEXT, 
+                 inimigo TEXT, 
+                 i_hp INTEGER, 
+                 i_atk INTEGER, 
+                 i_def INTEGER, 
+                 i_xp INTEGER, 
+                 i_gold INTEGER,
+                 tipo_monstro TEXT, 
+                 mapa_monstro INTEGER)''')
+    
     conn.commit()
     conn.close()
 
 def get_p(uid):
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    p = conn.execute("SELECT * FROM players WHERE id = ?", (uid,)).fetchone()
+    conn = get_db_connection()
+    c = conn.cursor(cursor_factory=RealDictCursor)
+    c.execute("SELECT * FROM players WHERE id = %s", (uid,))
+    p = c.fetchone()
     conn.close()
     return p
 
 def get_combate(uid):
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    c = conn.execute("SELECT * FROM combate WHERE pid = ?", (uid,)).fetchone()
+    conn = get_db_connection()
+    c = conn.cursor(cursor_factory=RealDictCursor)
+    c.execute("SELECT * FROM combate WHERE pid = %s", (uid,))
+    cb = c.fetchone()
     conn.close()
-    return c
+    return cb
 
 def get_heroi_oferta(uid):
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    h = conn.execute("SELECT * FROM heroi_oferta WHERE pid = ?", (uid,)).fetchone()
+    conn = get_db_connection()
+    c = conn.cursor(cursor_factory=RealDictCursor)
+    c.execute("SELECT * FROM heroi_oferta WHERE pid = %s", (uid,))
+    h = c.fetchone()
     conn.close()
     return h
 
 def del_p(uid):
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_db_connection()
     c = conn.cursor()
-    for t in ["players", "inv", "dung", "combate", "heroi_oferta"]:
-        c.execute(f"DELETE FROM {t} WHERE {'id' if t=='players' else 'pid'} = ?", (uid,))
+    # Deletar em ordem devido às foreign keys (embora não tenhamos FK definidas explicitamente)
+    c.execute("DELETE FROM heroi_oferta WHERE pid = %s", (uid,))
+    c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
+    c.execute("DELETE FROM dung WHERE pid = %s", (uid,))
+    c.execute("DELETE FROM inv WHERE pid = %s", (uid,))
+    c.execute("DELETE FROM players WHERE id = %s", (uid,))
     conn.commit()
     conn.close()
 
 def get_inv(uid):
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    inv = conn.execute("SELECT * FROM inv WHERE pid = ?", (uid,)).fetchall()
+    conn = get_db_connection()
+    c = conn.cursor(cursor_factory=RealDictCursor)
+    c.execute("SELECT * FROM inv WHERE pid = %s", (uid,))
+    inv = c.fetchall()
     conn.close()
     return {i['item']: i['qtd'] for i in inv}
 
 def add_inv(uid, item, qtd=1):
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_db_connection()
     c = conn.cursor()
-    c.execute("INSERT INTO inv VALUES (?,?,?) ON CONFLICT(pid,item) DO UPDATE SET qtd=qtd+?", (uid,item,qtd,qtd))
+    # PostgreSQL UPSERT usando ON CONFLICT
+    c.execute("""INSERT INTO inv (pid, item, qtd) 
+                 VALUES (%s, %s, %s) 
+                 ON CONFLICT (pid, item) 
+                 DO UPDATE SET qtd = inv.qtd + %s""", 
+              (uid, item, qtd, qtd))
     conn.commit()
     conn.close()
 
 def use_inv(uid, item):
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_db_connection()
     c = conn.cursor()
-    c.execute("UPDATE inv SET qtd=qtd-1 WHERE pid=? AND item=?", (uid,item))
-    c.execute("DELETE FROM inv WHERE qtd<=0")
+    c.execute("UPDATE inv SET qtd = qtd - 1 WHERE pid = %s AND item = %s", (uid, item))
+    c.execute("DELETE FROM inv WHERE qtd <= 0")
     conn.commit()
     conn.close()
 
@@ -349,11 +432,11 @@ def img_c(c):
 
 def atk(p):
     base = CLASSE_STATS[p['classe']]['atk']
-    return base + (p['lv']*3) + p['atk_b']  # Aumentar de *2 para *3 para compensar ATK base menor
+    return base + (p['lv']*3) + p['atk_b']
 
 def deff(p):
     base = CLASSE_STATS[p['classe']]['def']
-    return base + (p['lv']*2) + p['def_b']  # Aumentar de *1 para *2
+    return base + (p['lv']*2) + p['def_b']
 
 async def menu(upd, ctx, uid, txt=""):
     p = get_p(uid)
@@ -422,12 +505,15 @@ async def cacar(upd, ctx):
             heroi = random.choice(herois_mapa)
             
             # Salvar oferta de herói com tipo e mapa do monstro
-            conn = sqlite3.connect(DB_FILE)
-            conn.execute("DELETE FROM heroi_oferta WHERE pid=?", (uid,))
-            conn.execute("INSERT INTO heroi_oferta VALUES (?,?,?,?,?,?,?,?,?,?,?)", 
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("DELETE FROM heroi_oferta WHERE pid = %s", (uid,))
+            c.execute("""INSERT INTO heroi_oferta 
+                        (pid, heroi_nome, heroi_img, inimigo, i_hp, i_atk, i_def, i_xp, i_gold, tipo_monstro, mapa_monstro) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", 
                         (uid, heroi['nome'], heroi['img'], inm, ini['hp'], ini['atk'], ini['def'], 
                          ini['xp'], ini['gold'], ini['tipo'], p['mapa']))
-            conn.execute("UPDATE players SET energia=energia-2 WHERE id=?", (uid,))
+            c.execute("UPDATE players SET energia = energia - 2 WHERE id = %s", (uid,))
             conn.commit()
             conn.close()
             
@@ -437,11 +523,14 @@ async def cacar(upd, ctx):
             return
     
     # Sem herói - criar combate normal com tipo e mapa do monstro
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("INSERT INTO combate VALUES (?,?,?,?,?,?,?,?,1,0,NULL,?,?)", 
-                 (uid, inm, ini['hp'], ini['hp'], ini['atk'], ini['def'], ini['xp'], ini['gold'], 
-                  ini['tipo'], p['mapa']))
-    conn.execute("UPDATE players SET energia=energia-2 WHERE id=?", (uid,))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("""INSERT INTO combate 
+                (pid, inimigo, i_hp, i_hp_max, i_atk, i_def, i_xp, i_gold, turno, defendendo, heroi, tipo_monstro, mapa_monstro) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 1, 0, NULL, %s, %s)""", 
+                (uid, inm, ini['hp'], ini['hp'], ini['atk'], ini['def'], ini['xp'], ini['gold'], 
+                 ini['tipo'], p['mapa']))
+    c.execute("UPDATE players SET energia = energia - 2 WHERE id = %s", (uid,))
     conn.commit()
     conn.close()
     
@@ -485,12 +574,15 @@ async def heroi_aceitar(upd, ctx):
         return
     
     # Criar combate COM herói
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("INSERT INTO combate VALUES (?,?,?,?,?,?,?,?,1,0,?,?,?)", 
-                 (uid, h_oferta['inimigo'], h_oferta['i_hp'], h_oferta['i_hp'], 
-                  h_oferta['i_atk'], h_oferta['i_def'], h_oferta['i_xp'], h_oferta['i_gold'], 
-                  h_oferta['heroi_nome'], h_oferta['tipo_monstro'], h_oferta['mapa_monstro']))
-    conn.execute("DELETE FROM heroi_oferta WHERE pid=?", (uid,))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("""INSERT INTO combate 
+                (pid, inimigo, i_hp, i_hp_max, i_atk, i_def, i_xp, i_gold, turno, defendendo, heroi, tipo_monstro, mapa_monstro) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 1, 0, %s, %s, %s)""", 
+                (uid, h_oferta['inimigo'], h_oferta['i_hp'], h_oferta['i_hp'], 
+                 h_oferta['i_atk'], h_oferta['i_def'], h_oferta['i_xp'], h_oferta['i_gold'], 
+                 h_oferta['heroi_nome'], h_oferta['tipo_monstro'], h_oferta['mapa_monstro']))
+    c.execute("DELETE FROM heroi_oferta WHERE pid = %s", (uid,))
     conn.commit()
     conn.close()
     
@@ -515,12 +607,15 @@ async def heroi_recusar(upd, ctx):
         return
     
     # Criar combate SEM herói
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("INSERT INTO combate VALUES (?,?,?,?,?,?,?,?,1,0,NULL,?,?)", 
-                 (uid, h_oferta['inimigo'], h_oferta['i_hp'], h_oferta['i_hp'], 
-                  h_oferta['i_atk'], h_oferta['i_def'], h_oferta['i_xp'], h_oferta['i_gold'],
-                  h_oferta['tipo_monstro'], h_oferta['mapa_monstro']))
-    conn.execute("DELETE FROM heroi_oferta WHERE pid=?", (uid,))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("""INSERT INTO combate 
+                (pid, inimigo, i_hp, i_hp_max, i_atk, i_def, i_xp, i_gold, turno, defendendo, heroi, tipo_monstro, mapa_monstro) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 1, 0, NULL, %s, %s)""", 
+                (uid, h_oferta['inimigo'], h_oferta['i_hp'], h_oferta['i_hp'], 
+                 h_oferta['i_atk'], h_oferta['i_def'], h_oferta['i_xp'], h_oferta['i_gold'],
+                 h_oferta['tipo_monstro'], h_oferta['mapa_monstro']))
+    c.execute("DELETE FROM heroi_oferta WHERE pid = %s", (uid,))
     conn.commit()
     conn.close()
     
@@ -640,10 +735,11 @@ async def bat_heroi(upd, ctx):
     await q.answer(f"⭐ {cb['heroi']} ataca!")
     
     # Hit Kill - herói mata instantaneamente
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("UPDATE players SET gold=gold+?,exp=exp+? WHERE id=?", 
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE players SET gold = gold + %s, exp = exp + %s WHERE id = %s", 
                  (cb['i_gold'], cb['i_xp'], uid))
-    conn.execute("DELETE FROM combate WHERE pid=?", (uid,))
+    c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
     conn.commit()
     conn.close()
     
@@ -707,13 +803,14 @@ async def bat_atk(upd, ctx):
         log.append(f"🐺 {cb['inimigo']} atacou! -{dano_ini} HP")
     
     # Atualizar DB
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_db_connection()
+    c = conn.cursor()
     if i_hp <= 0:
         # Vitória
         p_hp = max(1, p_hp)
-        conn.execute("UPDATE players SET hp=?,gold=gold+?,exp=exp+? WHERE id=?", 
+        c.execute("UPDATE players SET hp = %s, gold = gold + %s, exp = exp + %s WHERE id = %s", 
                      (p_hp, cb['i_gold'], cb['i_xp'], uid))
-        conn.execute("DELETE FROM combate WHERE pid=?", (uid,))
+        c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
         conn.commit()
         conn.close()
         
@@ -726,8 +823,8 @@ async def bat_atk(upd, ctx):
         await ctx.bot.send_photo(upd.effective_chat.id, img_c(p['classe']), caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     elif p_hp <= 0:
         # Derrota
-        conn.execute("UPDATE players SET hp=1 WHERE id=?", (uid,))
-        conn.execute("DELETE FROM combate WHERE pid=?", (uid,))
+        c.execute("UPDATE players SET hp = 1 WHERE id = %s", (uid,))
+        c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
         conn.commit()
         conn.close()
         
@@ -740,8 +837,8 @@ async def bat_atk(upd, ctx):
         await ctx.bot.send_photo(upd.effective_chat.id, img_c(p['classe']), caption=cap, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     else:
         # Continua
-        conn.execute("UPDATE combate SET i_hp=?,turno=turno+1,defendendo=0 WHERE pid=?", (i_hp, uid))
-        conn.execute("UPDATE players SET hp=? WHERE id=?", (p_hp, uid))
+        c.execute("UPDATE combate SET i_hp = %s, turno = turno + 1, defendendo = 0 WHERE pid = %s", (i_hp, uid))
+        c.execute("UPDATE players SET hp = %s WHERE id = %s", (p_hp, uid))
         conn.commit()
         conn.close()
         
@@ -751,8 +848,9 @@ async def bat_def(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
     
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("UPDATE combate SET defendendo=1,turno=turno+1 WHERE pid=?", (uid,))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE combate SET defendendo = 1, turno = turno + 1 WHERE pid = %s", (uid,))
     conn.commit()
     conn.close()
     
@@ -776,9 +874,16 @@ async def bat_esp(upd, ctx):
         dano = int(atk(p) * 1.3)
         i_hp = cb['i_hp'] - dano
         
-        conn = sqlite3.connect(DB_FILE)
-        conn.execute("UPDATE combate SET i_hp=?,i_def=CASE WHEN i_def-3 < 0 THEN 0 ELSE i_def-3 END,turno=turno+1,defendendo=0 WHERE pid=?", (i_hp, uid))
-        conn.execute("UPDATE players SET mana=mana-20 WHERE id=?", (uid,))
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("""UPDATE combate 
+                    SET i_hp = %s, 
+                        i_def = CASE WHEN i_def - 3 < 0 THEN 0 ELSE i_def - 3 END, 
+                        turno = turno + 1, 
+                        defendendo = 0 
+                    WHERE pid = %s""", 
+                 (i_hp, uid))
+        c.execute("UPDATE players SET mana = mana - 20 WHERE id = %s", (uid,))
         conn.commit()
         conn.close()
         
@@ -798,9 +903,10 @@ async def bat_esp(upd, ctx):
         dano = min(dano_max, int(atk(p) * 1.5))
         i_hp = cb['i_hp'] - dano
         
-        conn = sqlite3.connect(DB_FILE)
-        conn.execute("UPDATE combate SET i_hp=?,turno=turno+1,defendendo=0 WHERE pid=?", (i_hp, uid))
-        conn.execute("UPDATE players SET mana=mana-30 WHERE id=?", (uid,))
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("UPDATE combate SET i_hp = %s, turno = turno + 1, defendendo = 0 WHERE pid = %s", (i_hp, uid))
+        c.execute("UPDATE players SET mana = mana - 30 WHERE id = %s", (uid,))
         conn.commit()
         conn.close()
         
@@ -837,8 +943,9 @@ async def usar_pocao(upd, ctx, item):
     
     if cons['tipo'] == 'hp':
         novo_hp = min(p['hp'] + cons['valor'], p['hp_max'])
-        conn = sqlite3.connect(DB_FILE)
-        conn.execute("UPDATE players SET hp=? WHERE id=?", (novo_hp, uid))
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("UPDATE players SET hp = %s WHERE id = %s", (novo_hp, uid))
         conn.commit()
         conn.close()
         use_inv(uid, item)
@@ -848,8 +955,9 @@ async def usar_pocao(upd, ctx, item):
             await q.answer("Você não usa mana!", show_alert=True)
             return
         novo_mana = min(p['mana'] + cons['valor'], p['mana_max'])
-        conn = sqlite3.connect(DB_FILE)
-        conn.execute("UPDATE players SET mana=? WHERE id=?", (novo_mana, uid))
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("UPDATE players SET mana = %s WHERE id = %s", (novo_mana, uid))
         conn.commit()
         conn.close()
         use_inv(uid, item)
@@ -862,17 +970,18 @@ async def usar_pocao(upd, ctx, item):
         dano_ini = max(1, cb['i_atk'] - deff(p) + random.randint(-2,2))
         novo_hp = p['hp'] - dano_ini
         
-        conn = sqlite3.connect(DB_FILE)
+        conn = get_db_connection()
+        c = conn.cursor()
         if novo_hp <= 0:
-            conn.execute("UPDATE players SET hp=1 WHERE id=?", (uid,))
-            conn.execute("DELETE FROM combate WHERE pid=?", (uid,))
+            c.execute("UPDATE players SET hp = 1 WHERE id = %s", (uid,))
+            c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
             conn.commit()
             conn.close()
             await menu(upd, ctx, uid, "💀 **Derrotado!**")
             return
         else:
-            conn.execute("UPDATE players SET hp=? WHERE id=?", (novo_hp, uid))
-            conn.execute("UPDATE combate SET turno=turno+1 WHERE pid=?", (uid,))
+            c.execute("UPDATE players SET hp = %s WHERE id = %s", (novo_hp, uid))
+            c.execute("UPDATE combate SET turno = turno + 1 WHERE pid = %s", (uid,))
             conn.commit()
             conn.close()
     
@@ -883,8 +992,9 @@ async def bat_fug(upd, ctx):
     uid = upd.effective_user.id
     
     if random.random() < 0.5:
-        conn = sqlite3.connect(DB_FILE)
-        conn.execute("DELETE FROM combate WHERE pid=?", (uid,))
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
         conn.commit()
         conn.close()
         await q.answer("🏃 Fugiu!")
@@ -896,17 +1006,18 @@ async def bat_fug(upd, ctx):
         dano = max(1, cb['i_atk'] - deff(p) + random.randint(0,3))
         novo_hp = p['hp'] - dano
         
-        conn = sqlite3.connect(DB_FILE)
+        conn = get_db_connection()
+        c = conn.cursor()
         if novo_hp <= 0:
-            conn.execute("UPDATE players SET hp=1 WHERE id=?", (uid,))
-            conn.execute("DELETE FROM combate WHERE pid=?", (uid,))
+            c.execute("UPDATE players SET hp = 1 WHERE id = %s", (uid,))
+            c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
             conn.commit()
             conn.close()
             await q.answer(f"❌ Falhou! -{dano} HP", show_alert=True)
             await menu(upd, ctx, uid, "💀 **Derrotado ao fugir!**")
         else:
-            conn.execute("UPDATE players SET hp=? WHERE id=?", (novo_hp, uid))
-            conn.execute("UPDATE combate SET turno=turno+1 WHERE pid=?", (uid,))
+            c.execute("UPDATE players SET hp = %s WHERE id = %s", (novo_hp, uid))
+            c.execute("UPDATE combate SET turno = turno + 1 WHERE pid = %s", (uid,))
             conn.commit()
             conn.close()
             await q.answer(f"❌ Falhou! -{dano} HP", show_alert=True)
@@ -949,8 +1060,9 @@ async def viajar(upd, ctx):
         await q.answer(f"⚠️ {m['aviso']}", show_alert=True)
         # Mas ainda permite viajar
     
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("UPDATE players SET mapa=?,local='cap' WHERE id=?", (mid,uid))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE players SET mapa = %s, local = 'cap' WHERE id = %s", (mid, uid))
     conn.commit()
     conn.close()
     
@@ -994,8 +1106,9 @@ async def ir_loc(upd, ctx):
     uid = upd.effective_user.id
     p = get_p(uid)
     lid = q.data.split('_')[1]
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("UPDATE players SET local=? WHERE id=?", (lid,uid))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE players SET local = %s WHERE id = %s", (lid, uid))
     conn.commit()
     conn.close()
     ln = MAPAS[p['mapa']]['loc'][lid]['nome']
@@ -1172,8 +1285,9 @@ async def comprar(upd, ctx):
         
         # Chance de roubo no contrabandista
         if tipo_loja == "contra" and random.random() < 0.05:
-            conn = sqlite3.connect(DB_FILE)
-            conn.execute("UPDATE players SET gold=gold-? WHERE id=?", (preco,uid))
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("UPDATE players SET gold = gold - %s WHERE id = %s", (preco, uid))
             conn.commit()
             conn.close()
             await q.answer("🏴‍☠️ Roubado!", show_alert=True)
@@ -1182,11 +1296,14 @@ async def comprar(upd, ctx):
             await loja(upd, ctx)
             return
         
-        conn = sqlite3.connect(DB_FILE)
-        if eq['t']=="arma":
-            conn.execute("UPDATE players SET gold=gold-?,arma=?,atk_b=? WHERE id=?", (preco,item,eq['atk'],uid))
+        conn = get_db_connection()
+        c = conn.cursor()
+        if eq['t'] == "arma":
+            c.execute("UPDATE players SET gold = gold - %s, arma = %s, atk_b = %s WHERE id = %s", 
+                     (preco, item, eq['atk'], uid))
         else:
-            conn.execute("UPDATE players SET gold=gold-?,arm=?,def_b=? WHERE id=?", (preco,item,eq['def'],uid))
+            c.execute("UPDATE players SET gold = gold - %s, arm = %s, def_b = %s WHERE id = %s", 
+                     (preco, item, eq['def'], uid))
         conn.commit()
         conn.close()
         await q.answer(f"✅ {item}!", show_alert=True)
@@ -1243,16 +1360,18 @@ async def confirmar_compra(upd, ctx):
     
     # Chance de roubo no contrabandista
     if tipo_loja == "contra" and random.random() < 0.05:
-        conn = sqlite3.connect(DB_FILE)
-        conn.execute("UPDATE players SET gold=gold-? WHERE id=?", (preco,uid))
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("UPDATE players SET gold = gold - %s WHERE id = %s", (preco, uid))
         conn.commit()
         conn.close()
         await q.answer("🏴‍☠️ Roubado!", show_alert=True)
         await loja(upd, ctx)
         return
     
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("UPDATE players SET gold=gold-? WHERE id=?", (preco,uid))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE players SET gold = gold - %s WHERE id = %s", (preco, uid))
     conn.commit()
     conn.close()
     add_inv(uid, item, 1)
@@ -1342,15 +1461,18 @@ async def dung(upd, ctx):
     php = max(1, php)
     
     if vit:
-        conn = sqlite3.connect(DB_FILE)
-        conn.execute("UPDATE players SET gold=gold+?,exp=exp+?,energia=energia-10,hp=? WHERE id=?", (d['g'],d['xp'],php,uid))
-        conn.execute("INSERT OR IGNORE INTO dung VALUES (?,?)", (uid,did))
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("UPDATE players SET gold = gold + %s, exp = exp + %s, energia = energia - 10, hp = %s WHERE id = %s", 
+                 (d['g'], d['xp'], php, uid))
+        c.execute("INSERT INTO dung (pid, did) VALUES (%s, %s) ON CONFLICT (pid, did) DO NOTHING", (uid, did))
         conn.commit()
         conn.close()
         res = f"🏆 **VIT!**\n💰 +{d['g']} | ✨ +{d['xp']}"
     else:
-        conn = sqlite3.connect(DB_FILE)
-        conn.execute("UPDATE players SET energia=energia-10,hp=1 WHERE id=?", (uid,))
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("UPDATE players SET energia = energia - 10, hp = 1 WHERE id = %s", (uid,))
         conn.commit()
         conn.close()
         res = "💀 **DERROT!**"
@@ -1437,10 +1559,11 @@ async def ch_lv(upd, ctx):
     uid = upd.effective_user.id
     p = get_p(uid)
     
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_db_connection()
+    c = conn.cursor()
     hp_max = CLASSE_STATS[p['classe']]['hp'] * 10
     mana_max = CLASSE_STATS[p['classe']]['mana'] * 10 if CLASSE_STATS[p['classe']]['mana'] > 0 else 0
-    conn.execute("UPDATE players SET lv=99,exp=0,hp_max=?,hp=?,mana_max=?,mana=?,energia_max=999,energia=999 WHERE id=?", 
+    c.execute("UPDATE players SET lv = 99, exp = 0, hp_max = %s, hp = %s, mana_max = %s, mana = %s, energia_max = 999, energia = 999 WHERE id = %s", 
                  (hp_max, hp_max, mana_max, mana_max, uid))
     conn.commit()
     conn.close()
@@ -1450,8 +1573,9 @@ async def ch_lv(upd, ctx):
 async def ch_g(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("UPDATE players SET gold=999999 WHERE id=?", (uid,))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE players SET gold = 999999 WHERE id = %s", (uid,))
     conn.commit()
     conn.close()
     await q.answer("💰 999,999!", show_alert=True)
@@ -1462,8 +1586,9 @@ async def voltar(upd, ctx):
     uid = upd.effective_user.id
     
     # Se estava em combate, cancela
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("DELETE FROM combate WHERE pid=?", (uid,))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM combate WHERE pid = %s", (uid,))
     conn.commit()
     conn.close()
     
@@ -1521,9 +1646,17 @@ async def fin(upd, ctx):
     
     stats = CLASSE_STATS[classe]
     
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("""INSERT OR REPLACE INTO players 
-                    VALUES (?,?,?,?,?,?,?,1,0,100,20,20,1,'cap',NULL,NULL,0,0,?,?)""", 
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("""INSERT INTO players 
+                    (id, nome, classe, hp, hp_max, mana, mana_max, lv, exp, gold, energia, energia_max, mapa, local, arma, arm, atk_b, def_b, crit, double_atk)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, 1, 0, 100, 20, 20, 1, 'cap', NULL, NULL, 0, 0, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                    nome = EXCLUDED.nome, classe = EXCLUDED.classe, hp = EXCLUDED.hp, hp_max = EXCLUDED.hp_max,
+                    mana = EXCLUDED.mana, mana_max = EXCLUDED.mana_max, lv = EXCLUDED.lv, exp = EXCLUDED.exp,
+                    gold = EXCLUDED.gold, energia = EXCLUDED.energia, energia_max = EXCLUDED.energia_max,
+                    mapa = EXCLUDED.mapa, local = EXCLUDED.local, arma = EXCLUDED.arma, arm = EXCLUDED.arm,
+                    atk_b = EXCLUDED.atk_b, def_b = EXCLUDED.def_b, crit = EXCLUDED.crit, double_atk = EXCLUDED.double_atk""", 
                  (uid, nome, classe, stats['hp'], stats['hp'], stats['mana'], stats['mana'],
                   stats['crit'], 1 if stats['double'] else 0))
     conn.commit()
