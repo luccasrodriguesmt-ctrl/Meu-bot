@@ -44,16 +44,7 @@ def run_fake_server():
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
-            self.wfile.write(b"""
-            <html>
-                <head><title>Bot Status</title></head>
-                <body>
-                    <h1>✅ Bot Online</h1>
-                    <p>Este é apenas um servidor de status.</p>
-                    <p>O bot do Telegram roda em paralelo.</p>
-                </body>
-            </html>
-            """)
+            self.wfile.write(b"<html><head><title>Bot Status</title></head><body><h1>\xe2\x9c\x85 Bot Online</h1><p>Este eh apenas um servidor de status.</p><p>O bot do Telegram roda em paralelo.</p></body></html>")
         
         def log_message(self, format, *args): 
             pass
@@ -62,8 +53,6 @@ def run_fake_server():
     server = HTTPServer(('0.0.0.0', port), Handler)
     logging.info(f"HTTP Server on port {port}")
     server.serve_forever()
-
-threading.Thread(target=run_fake_server, daemon=True).start()
 
 # Configuração PostgreSQL
 DATABASE_URL = os.getenv("DATABASE_URL")
