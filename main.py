@@ -1640,12 +1640,9 @@ async def voltar(upd, ctx):
 
 # ===== INÍCIO / CRIAÇÃO DE PERSONAGEM =====
 async def start(upd, ctx):
-    uid = upd.effective_user.id
-    p = get_p(uid)
-    if p:
-        invalidate_cache(uid)
-        await menu(upd, ctx, uid)
-        return  # NADA MAIS
+    # TESTE DIRETO
+    await upd.message.reply_text("ESTOU VIVO PORRA!")
+    return  # NADA MAIS
     # ... resto do código pro novo jogador ...
 
     ctx.user_data.clear()
