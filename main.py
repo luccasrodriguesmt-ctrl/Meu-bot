@@ -9,7 +9,7 @@ from cachetools import TTLCache
 import datetime
 import requests
 
-VERSAO = "7.2.1 - dano e def equilibrio"
+VERSAO = "7.2.2 - dano e def equilibrio"
 
 # Request com timeout otimizado
 request = HTTPXRequest(
@@ -1645,7 +1645,8 @@ async def start(upd, ctx):
     if p:
         invalidate_cache(uid)
         await menu(upd, ctx, uid)
-        return ConversationHandler.END
+        return  # NADA MAIS
+    # ... resto do código pro novo jogador ...
 
     ctx.user_data.clear()
     agora = datetime.datetime.now().strftime("%H:%M:%S")
