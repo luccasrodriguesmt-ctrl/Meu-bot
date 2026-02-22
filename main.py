@@ -300,6 +300,29 @@ CONSUMIVEIS = {
     "Elixir de Mana": {"tipo": "mana", "valor": 60, "preco": 60}
 }
 
+INIMIGOS = {
+    # ===== PLANÍCIE (FÁCIL) =====
+    "Goblin da Planície": {"hp": 60, "atk": 8, "def": 3, "xp": 15, "gold": 8, "desc": "Goblin verde", "m": [1], "tipo": "Goblin"},
+    "Lobo da Planície": {"hp": 80, "atk": 10, "def": 4, "xp": 20, "gold": 12, "desc": "Lobo selvagem", "m": [1], "tipo": "Lobo"},
+    "Orc da Planície": {"hp": 120, "atk": 14, "def": 6, "xp": 30, "gold": 20, "desc": "Orc guerreiro", "m": [1, 2], "tipo": "Orc"},
+    "Esqueleto da Planície": {"hp": 100, "atk": 12, "def": 5, "xp": 25, "gold": 15, "desc": "Esqueleto guerreiro", "m": [1, 2], "tipo": "Esqueleto"},
+    "Dragão da Planície": {"hp": 200, "atk": 18, "def": 8, "xp": 50, "gold": 40, "desc": "Dragão jovem", "m": [1], "tipo": "Dragão"},
+
+    # ===== FLORESTA (MÉDIO) =====
+    "Goblin da Floresta": {"hp": 180, "atk": 22, "def": 10, "xp": 45, "gold": 25, "desc": "Goblin feroz", "m": [2], "tipo": "Goblin"},
+    "Lobo da Floresta": {"hp": 250, "atk": 28, "def": 14, "xp": 60, "gold": 35, "desc": "Lobo alfa", "m": [2], "tipo": "Lobo"},
+    "Orc da Floresta": {"hp": 350, "atk": 35, "def": 18, "xp": 90, "gold": 55, "desc": "Orc berserker", "m": [2, 3], "tipo": "Orc"},
+    "Esqueleto da Floresta": {"hp": 300, "atk": 32, "def": 16, "xp": 75, "gold": 45, "desc": "Esqueleto ancestral", "m": [2, 3], "tipo": "Esqueleto"},
+    "Dragão da Floresta": {"hp": 500, "atk": 45, "def": 22, "xp": 150, "gold": 120, "desc": "Dragão ancestral", "m": [2], "tipo": "Dragão"},
+
+    # ===== CAVERNA (DIFÍCIL) =====
+    "Goblin da Caverna": {"hp": 400, "atk": 48, "def": 24, "xp": 120, "gold": 70, "desc": "Goblin sombrio", "m": [3], "tipo": "Goblin"},
+    "Lobo da Caverna": {"hp": 550, "atk": 60, "def": 30, "xp": 160, "gold": 95, "desc": "Lobo das sombras", "m": [3], "tipo": "Lobo"},
+    "Orc da Caverna": {"hp": 750, "atk": 75, "def": 38, "xp": 240, "gold": 140, "desc": "Orc brutal", "m": [3], "tipo": "Orc"},
+    "Esqueleto da Caverna": {"hp": 650, "atk": 68, "def": 34, "xp": 200, "gold": 120, "desc": "Esqueleto rei", "m": [3], "tipo": "Esqueleto"},
+    "Dragão da Caverna": {"hp": 1200, "atk": 90, "def": 45, "xp": 400, "gold": 300, "desc": "Dragão primordial", "m": [3], "tipo": "Dragão"}
+}
+
 DUNGEONS = [
     {"nome": "Covil Goblin", "lv": 5, "boss": "Rei Goblin", "bhp": 350, "batk": 28, "xp": 250, "g": 200},
     {"nome": "Ninho Lobos", "lv": 10, "boss": "Lobo Alpha", "bhp": 650, "batk": 45, "xp": 500, "g": 400}
@@ -706,7 +729,7 @@ async def descansar(upd, ctx):
         custo = 20
         recupera = 10
         if dados['gold'] < custo:
-            await q.answer("💰 Sem gold!", show_alert=True)
+            await q.answer("💰 Sem gold! Precisa de 20", show_alert=True)
             return
         
         nova_energia = min(dados['energia'] + recupera, dados['energia_max'])
@@ -719,12 +742,33 @@ async def descansar(upd, ctx):
         invalidate_cache(uid)
         
         await q.answer(f"🏕️ Descansou! +{recupera} energia")
-        await menu(upd, ctx, uid, f"🏕️ **Descansou no acampamento!**\n⚡ +{recupera} energia")
+        
+        # Volta para o local atual
+        chave_local = f"{dados['local']}_{dados['mapa']}"
+        img_local = IMAGENS["locais"].get(chave_local, IMAGENS["classes"]["Guerreiro"])
+        li = MAPAS[dados['mapa']]['loc'][dados['local']]
+        cap = (f"📍 **{li['nome']}**\n{'━'*20}\n"
+               f"🏕️ **Descansou!**\n💰 -{custo} gold\n⚡ +{recupera} energia\n\n"
+               f"Energia atual: {nova_energia}/{dados['energia_max']}\n{'━'*20}")
+        
+        kb = []
+        if li.get('acampamento'):
+            kb.append([InlineKeyboardButton("🏕️ Descansar (20💰)", callback_data="descansar_acampamento")])
+        if li.get('pensao'):
+            kb.append([InlineKeyboardButton("🏨 Dormir (90💰)", callback_data="descansar_pensao")])
+        kb.append([InlineKeyboardButton("🔙 Menu", callback_data="voltar")])
+        
+        try:
+            await q.message.delete()
+        except:
+            pass
+        await ctx.bot.send_photo(upd.effective_chat.id, img_local, caption=cap,
+                                 reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
         
     elif tipo == "pensao":
-        custo = 90  # Valor médio entre 80-100
+        custo = 90
         if dados['gold'] < custo:
-            await q.answer("💰 Sem gold!", show_alert=True)
+            await q.answer(f"💰 Sem gold! Precisa de {custo}", show_alert=True)
             return
         
         conn = get_db_connection()
@@ -734,10 +778,14 @@ async def descansar(upd, ctx):
         conn.commit()
         invalidate_cache(uid)
         
+        # Recarrega dados
+        dados = get_tudo(uid)
+        
         img_pensao = IMAGENS["pensoes"].get(dados['mapa'], IMAGENS["pensoes"][1])
         cap = (f"🏨 **PENSÃO**\n{'━'*20}\n"
                f"💤 Você dormiu profundamente...\n\n"
-               f"⚡ Energia recuperada!\n💰 -{custo} gold\n{'━'*20}")
+               f"⚡ Energia recuperada: {dados['energia_max']}/{dados['energia_max']}\n"
+               f"💰 -{custo} gold\n{'━'*20}")
         kb = [[InlineKeyboardButton("🔙 Voltar", callback_data="voltar")]]
         
         try:
@@ -758,25 +806,32 @@ async def cacar(upd, ctx):
         return
 
     if dados['energia'] < 2:
-        await q.answer("🪫 Sem energia!", show_alert=True)
+        await q.answer("🪫 Sem energia! (Precisa de 2)", show_alert=True)
+        await menu(upd, ctx, uid, "🪫 **Sem energia!**")
         return
 
+    # Verifica se já tem combate ativo
     if dados.get('inimigo'):
         await exibir_combate(upd, ctx, dados)
         return
 
-    inims = [n for n, d in INIMIGOS.items() if dados['mapa'] in d['m']]
-    if not inims:
-        await menu(upd, ctx, uid, "❌ Sem inimigos!")
+    # Filtra inimigos do mapa atual
+    inims_disponiveis = []
+    for nome, dados_inimigo in INIMIGOS.items():
+        if dados['mapa'] in dados_inimigo['m']:
+            inims_disponiveis.append(nome)
+    
+    if not inims_disponiveis:
+        await menu(upd, ctx, uid, "❌ Nenhum inimigo encontrado neste mapa!")
         return
 
-    inm = random.choice(inims)
+    inm = random.choice(inims_disponiveis)
     ini = INIMIGOS[inm]
 
     conn = get_db_connection()
     c = conn.cursor()
 
-    # Chance de herói aumentada para 10%
+    # Chance de herói 10%
     if random.random() < 0.10:
         herois_mapa = HEROIS.get(dados['mapa'], [])
         if herois_mapa:
@@ -820,13 +875,8 @@ async def cacar(upd, ctx):
     conn.commit()
     invalidate_cache(uid)
 
-    dados.update({
-        'inimigo': inm, 'i_hp': ini['hp'], 'i_hp_max': ini['hp'],
-        'i_atk': ini['atk'], 'i_def': ini['def'], 'i_xp': ini['xp'],
-        'i_gold': ini['gold'], 'turno': 1, 'defendendo': 0, 'heroi': None,
-        'tipo_monstro': ini['tipo'], 'mapa_monstro': dados['mapa'],
-        'energia': dados['energia'] - 2
-    })
+    # Recarrega dados com combate
+    dados = get_tudo(uid)
     await exibir_combate(upd, ctx, dados)
 
 # ===== MONTA TELA DE COMBATE =====
@@ -1512,8 +1562,10 @@ async def locais(upd, ctx):
     await q.answer()
 
     m = MAPAS.get(dados['mapa'], {})
-    cap = f"🏘️ **LOCAIS - {m.get('nome','')}**\n{'━'*20}\n"
+    cap = (f"🏘️ **LOCAIS - {m.get('nome','')}**\n{'━'*20}\n"
+           f"⚡ Energia: {dados['energia']}/{dados['energia_max']}\n\n")
     kb = []
+    
     for lid, loc in m.get('loc', {}).items():
         at = " 📍" if lid == dados['local'] else ""
         lj = " 🏪" if loc.get('loja') else ""
@@ -1525,7 +1577,7 @@ async def locais(upd, ctx):
         botoes = []
         botoes.append(InlineKeyboardButton(f"📍 Ir", callback_data=f"iloc_{lid}"))
         if loc.get('acampamento'):
-            botoes.append(InlineKeyboardButton(f"🏕️ Descansar (20⚡)", callback_data=f"descansar_acampamento"))
+            botoes.append(InlineKeyboardButton(f"🏕️ Descansar (20💰)", callback_data=f"descansar_acampamento"))
         if loc.get('pensao'):
             botoes.append(InlineKeyboardButton(f"🏨 Pensão (90💰)", callback_data=f"descansar_pensao"))
         kb.append(botoes)
@@ -1560,7 +1612,10 @@ async def ir_loc(upd, ctx):
     img_local = IMAGENS["locais"].get(chave_local, IMAGENS["classes"]["Guerreiro"])
 
     li = MAPAS[dados['mapa']]['loc'][lid]
-    cap = f"📍 **{ln}**\n{'━'*20}\n🗺️ {MAPAS[dados['mapa']]['nome']}\n\n"
+    cap = (f"📍 **{ln}**\n{'━'*20}\n"
+           f"🗺️ {MAPAS[dados['mapa']]['nome']}\n"
+           f"⚡ Energia: {dados['energia']}/{dados['energia_max']}\n\n")
+    
     if li.get('loja'):
         cap += "🏪 Loja disponível\n"
     if li.get('acampamento'):
@@ -1598,16 +1653,17 @@ async def loja(upd, ctx):
     cap = (f"🏪 **COMÉRCIO - {loc['nome']}**\n{'━'*20}\n\n"
            f"📍 Escolha onde comprar:\n\n"
            f"🏪 **Loja Normal**\n└ Preços justos\n└ Itens garantidos\n\n"
-           f"🏴‍☠️ **Mercado Negro**\n└ 💰 -30% preços\n└ ⚠️ 5% chance de roubo\n\n"
-           f"💰 **Vender Itens**\n└ Venda seus equipamentos (50% do valor)")
+           f"🏴‍☠️ **Mercado Negro**\n└ 💰 -30% preços\n└ ⚠️ 5% chance de roubo\n{'━'*20}")
+    
     kb = [
         [InlineKeyboardButton("🏪 Loja Normal", callback_data="loja_normal")],
         [InlineKeyboardButton("🏴‍☠️ Mercado Negro", callback_data="loja_contra")],
-        [InlineKeyboardButton("💰 Vender Itens", callback_data="loja_vender")],
         [InlineKeyboardButton("🔙 Voltar", callback_data="voltar")]
     ]
+    
     chave_local = f"{dados['local']}_{dados['mapa']}"
     img_local = IMAGENS["locais"].get(chave_local, IMAGENS["classes"]["Guerreiro"])
+    
     try:
         await q.message.delete()
     except:
@@ -1650,6 +1706,8 @@ async def loja_normal(upd, ctx):
         if dados['gold'] >= cs['preco']:
             kb.append([InlineKeyboardButton(f"💊 Comprar {n}", callback_data=f"comprar_consumivel_{n}")])
 
+    # Botão de vender AGORA DENTRO DA LOJA NORMAL
+    kb.append([InlineKeyboardButton("💰 Vender Itens", callback_data="loja_vender")])
     kb.append([InlineKeyboardButton("🔙 Voltar", callback_data="loja")])
     cap += f"{'━'*20}"
 
@@ -1696,6 +1754,8 @@ async def loja_contra(upd, ctx):
         if dados['gold'] >= preco:
             kb.append([InlineKeyboardButton(f"💊 Comprar {n}", callback_data=f"comprar_contra_consumivel_{n}")])
 
+    # Botão de vender TAMBÉM NO MERCADO NEGRO
+    kb.append([InlineKeyboardButton("💰 Vender Itens", callback_data="loja_vender")])
     kb.append([InlineKeyboardButton("🔙 Voltar", callback_data="loja")])
     cap += f"{'━'*20}"
 
@@ -1710,28 +1770,44 @@ async def loja_contra(upd, ctx):
 async def loja_vender(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
+    dados = get_tudo(uid)
     await q.answer()
     
     itens, _ = get_itens_jogador(uid)
     
+    # Pega a imagem da loja local
+    chave_loja = f"{dados['local']}_{dados['mapa']}"
+    img_loja = IMAGENS["lojas"].get(chave_loja, IMAGENS["classes"]["Guerreiro"])
+    
     if not itens:
         cap = "💰 **VENDER ITENS**\n{'━'*20}\nVocê não tem itens para vender!\n{'━'*20}"
-        kb = [[InlineKeyboardButton("🔙 Voltar", callback_data="loja")]]
+        kb = [[InlineKeyboardButton("🔙 Voltar", callback_data="loja_normal")]]
         try:
             await q.message.delete()
         except:
             pass
-        await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["classes"]["Guerreiro"], caption=cap,
+        await ctx.bot.send_photo(upd.effective_chat.id, img_loja, caption=cap,
                                  reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
         return
     
     cap = f"💰 **VENDER ITENS**\n{'━'*20}\n⚠️ Venda por 50% do valor\n\n"
     kb = []
     
-    for item in itens[:10]:  # Mostra apenas 10 itens para não poluir
-        if item['tipo'] == 'consumivel':
-            continue  # Consumíveis não podem ser vendidos (ou pode?)
-        
+    # Filtra apenas itens que não são consumíveis para venda
+    itens_venda = [i for i in itens if i['tipo'] != 'consumivel']
+    
+    if not itens_venda:
+        cap = "💰 **VENDER ITENS**\n{'━'*20}\nVocê não tem equipamentos para vender!\n{'━'*20}"
+        kb = [[InlineKeyboardButton("🔙 Voltar", callback_data="loja_normal")]]
+        try:
+            await q.message.delete()
+        except:
+            pass
+        await ctx.bot.send_photo(upd.effective_chat.id, img_loja, caption=cap,
+                                 reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        return
+    
+    for item in itens_venda[:10]:  # Mostra apenas 10 itens
         base = ITENS_BASE.get(item['nome'])
         if base:
             preco_venda = int(base['preco'] * 0.5)
@@ -1744,17 +1820,17 @@ async def loja_vender(upd, ctx):
             cap += f"{emoji} {item['nome']} {stats}{equipado}\n└ 💰 {preco_venda}\n"
             kb.append([InlineKeyboardButton(f"💰 Vender {item['nome']}", callback_data=f"vender_{item['id']}")])
     
-    if len(itens) > 10:
-        cap += f"\n... e mais {len(itens)-10} itens"
+    if len(itens_venda) > 10:
+        cap += f"\n... e mais {len(itens_venda)-10} itens"
     
-    kb.append([InlineKeyboardButton("🔙 Voltar", callback_data="loja")])
+    kb.append([InlineKeyboardButton("🔙 Voltar", callback_data="loja_normal")])
     cap += f"{'━'*20}"
     
     try:
         await q.message.delete()
     except:
         pass
-    await ctx.bot.send_photo(upd.effective_chat.id, IMAGENS["classes"]["Guerreiro"], caption=cap,
+    await ctx.bot.send_photo(upd.effective_chat.id, img_loja, caption=cap,
                              reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
 
 async def comprar_item(upd, ctx):
