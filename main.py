@@ -9,7 +9,7 @@ from cachetools import TTLCache
 import datetime
 import requests
 
-VERSAO = "7.2.2 - dano e def equilibrio"
+VERSAO = "8.0"
 
 # Request com timeout otimizado
 request = HTTPXRequest(
@@ -172,38 +172,43 @@ IMAGENS = {
     }
 }
 
+# CORRIGIDO: adicionado campo 'especial' em todas as classes
 CLASSE_STATS = {
     "Guerreiro": {  # TANK
         "hp": 200,
         "mana": 0,
         "atk": 8,
-        "def": 25,        # ALTA defesa
+        "def": 25,
         "crit": 5,
-        "double": False
+        "double": False,
+        "especial": None
     },
     "Arqueiro": {   # DPS
         "hp": 140,
         "mana": 0,
         "atk": 12,
-        "def": 12,        # MÉDIA defesa
+        "def": 12,
         "crit": 25,
-        "double": True
+        "double": True,
+        "especial": None
     },
     "Bruxa": {      # HÍBRIDA
         "hp": 160,
         "mana": 120,
         "atk": 10,
-        "def": 15,        # MÉDIA+ defesa
+        "def": 15,
         "crit": 10,
-        "double": False
+        "double": False,
+        "especial": "maldição"
     },
     "Mago": {       # GLASS CANNON
         "hp": 120,
         "mana": 150,
         "atk": 14,
-        "def": 8,         # BAIXA defesa
+        "def": 8,
         "crit": 15,
-        "double": False
+        "double": False,
+        "especial": "explosão"
     }
 }
 
@@ -247,14 +252,14 @@ INIMIGOS = {
     "Orc da Planície": {"hp": 120, "atk": 14, "def": 6, "xp": 30, "gold": 20, "desc": "Orc guerreiro", "m": [1, 2], "tipo": "Orc"},
     "Esqueleto da Planície": {"hp": 100, "atk": 12, "def": 5, "xp": 25, "gold": 15, "desc": "Esqueleto guerreiro", "m": [1, 2], "tipo": "Esqueleto"},
     "Dragão da Planície": {"hp": 200, "atk": 18, "def": 8, "xp": 50, "gold": 40, "desc": "Dragão jovem", "m": [1], "tipo": "Dragão"},
-    
+
     # ===== FLORESTA (MÉDIO) =====
     "Goblin da Floresta": {"hp": 180, "atk": 22, "def": 10, "xp": 45, "gold": 25, "desc": "Goblin feroz", "m": [2], "tipo": "Goblin"},
     "Lobo da Floresta": {"hp": 250, "atk": 28, "def": 14, "xp": 60, "gold": 35, "desc": "Lobo alfa", "m": [2], "tipo": "Lobo"},
     "Orc da Floresta": {"hp": 350, "atk": 35, "def": 18, "xp": 90, "gold": 55, "desc": "Orc berserker", "m": [2, 3], "tipo": "Orc"},
     "Esqueleto da Floresta": {"hp": 300, "atk": 32, "def": 16, "xp": 75, "gold": 45, "desc": "Esqueleto ancestral", "m": [2, 3], "tipo": "Esqueleto"},
     "Dragão da Floresta": {"hp": 500, "atk": 45, "def": 22, "xp": 150, "gold": 120, "desc": "Dragão ancestral", "m": [2], "tipo": "Dragão"},
-    
+
     # ===== CAVERNA (DIFÍCIL) =====
     "Goblin da Caverna": {"hp": 400, "atk": 48, "def": 24, "xp": 120, "gold": 70, "desc": "Goblin sombrio", "m": [3], "tipo": "Goblin"},
     "Lobo da Caverna": {"hp": 550, "atk": 60, "def": 30, "xp": 160, "gold": 95, "desc": "Lobo das sombras", "m": [3], "tipo": "Lobo"},
@@ -262,6 +267,7 @@ INIMIGOS = {
     "Esqueleto da Caverna": {"hp": 650, "atk": 68, "def": 34, "xp": 200, "gold": 120, "desc": "Esqueleto rei", "m": [3], "tipo": "Esqueleto"},
     "Dragão da Caverna": {"hp": 1200, "atk": 90, "def": 45, "xp": 400, "gold": 300, "desc": "Dragão primordial", "m": [3], "tipo": "Dragão"}
 }
+
 EQUIPS = {
     # ===== GUERREIRO =====
     "Espada Enferrujada": {"t": "arma", "atk": 3, "p": 50, "lv": 1, "cls": ["Guerreiro"]},
@@ -270,7 +276,7 @@ EQUIPS = {
     "Escudo de Madeira": {"t": "arm", "def": 4, "p": 50, "lv": 1, "cls": ["Guerreiro"]},
     "Escudo de Ferro": {"t": "arm", "def": 12, "p": 200, "lv": 5, "cls": ["Guerreiro"]},
     "Escudo de Aço": {"t": "arm", "def": 22, "p": 500, "lv": 10, "cls": ["Guerreiro"]},
-    
+
     # ===== ARQUEIRO =====
     "Arco Simples": {"t": "arma", "atk": 4, "p": 50, "lv": 1, "cls": ["Arqueiro"]},
     "Arco Composto": {"t": "arma", "atk": 11, "p": 200, "lv": 5, "cls": ["Arqueiro"]},
@@ -278,7 +284,7 @@ EQUIPS = {
     "Armadura Leve": {"t": "arm", "def": 3, "p": 50, "lv": 1, "cls": ["Arqueiro"]},
     "Couro Reforçado": {"t": "arm", "def": 9, "p": 200, "lv": 5, "cls": ["Arqueiro"]},
     "Manto Sombrio": {"t": "arm", "def": 18, "p": 500, "lv": 10, "cls": ["Arqueiro"]},
-    
+
     # ===== BRUXA =====
     "Cajado Antigo": {"t": "arma", "atk": 3, "p": 50, "lv": 1, "cls": ["Bruxa"]},
     "Cetro Lunar": {"t": "arma", "atk": 10, "p": 200, "lv": 5, "cls": ["Bruxa"]},
@@ -286,7 +292,7 @@ EQUIPS = {
     "Robe Místico": {"t": "arm", "def": 4, "p": 50, "lv": 1, "cls": ["Bruxa"]},
     "Manto Encantado": {"t": "arm", "def": 11, "p": 200, "lv": 5, "cls": ["Bruxa"]},
     "Vestes Arcanas": {"t": "arm", "def": 20, "p": 500, "lv": 10, "cls": ["Bruxa"]},
-    
+
     # ===== MAGO =====
     "Bastão Iniciante": {"t": "arma", "atk": 4, "p": 50, "lv": 1, "cls": ["Mago"]},
     "Orbe de Fogo": {"t": "arma", "atk": 12, "p": 200, "lv": 5, "cls": ["Mago"]},
@@ -295,6 +301,7 @@ EQUIPS = {
     "Armadura Mágica": {"t": "arm", "def": 9, "p": 200, "lv": 5, "cls": ["Mago"]},
     "Robe do Arquimago": {"t": "arm", "def": 18, "p": 500, "lv": 10, "cls": ["Mago"]}
 }
+
 CONSUMIVEIS = {
     "Poção de Vida": {"tipo": "hp", "valor": 50, "preco": 20},
     "Poção Grande de Vida": {"tipo": "hp", "valor": 100, "preco": 50},
@@ -340,12 +347,11 @@ def init_db():
                  i_xp INTEGER, i_gold INTEGER, tipo_monstro TEXT, mapa_monstro INTEGER)''')
     conn.commit()
 
-# ===== QUERY UNIFICADA - CORAÇÃO DO SISTEMA =====
+# ===== QUERY UNIFICADA =====
 def get_tudo(uid):
-    """Busca player + combate + inventário em 1 única query. Núcleo da otimização."""
     if uid in player_cache:
         return player_cache[uid]
-    
+
     conn = get_db_connection()
     c = conn.cursor(cursor_factory=RealDictCursor)
     c.execute("""
@@ -413,16 +419,17 @@ def calc_atk(dados):
     base = CLASSE_STATS[dados['classe']]['atk']
     return base + (dados['lv'] * 3) + dados['atk_b']
 
-def calc_def_percentual(dados):
-    """Calcula defesa como % (base + equip)"""
+# CORRIGIDO: função calc_def que estava faltando
+def calc_def(dados):
+    """Calcula defesa final (base da classe + equip)"""
     base = CLASSE_STATS[dados['classe']]['def']
-    return base + dados['def_b']  # retorna % (ex: 25 + 5 = 30%)
+    return base + dados['def_b']
 
-# ===== MONTA TELA DE COMBATE (sem queries) =====
+# ===== MONTA TELA DE COMBATE =====
 def montar_cap_combate(dados):
+    import json
     inv_data = dados.get('inventario') or {}
     if isinstance(inv_data, str):
-        import json
         inv_data = json.loads(inv_data)
 
     p_atk = calc_atk(dados)
@@ -491,7 +498,6 @@ def montar_cap_combate(dados):
     return cap, kb, img
 
 async def exibir_combate(upd, ctx, dados):
-    """Exibe tela de combate com dados já em memória - ZERO queries extras."""
     cap, kb, img = montar_cap_combate(dados)
     try:
         await upd.callback_query.edit_message_media(
@@ -633,7 +639,6 @@ async def cacar(upd, ctx):
     conn.commit()
     invalidate_cache(uid)
 
-    # Monta dados em memória sem nova query
     dados.update({
         'inimigo': inm, 'i_hp': ini['hp'], 'i_hp_max': ini['hp'],
         'i_atk': ini['atk'], 'i_def': ini['def'], 'i_xp': ini['xp'],
@@ -706,12 +711,11 @@ async def heroi_recusar(upd, ctx):
 async def bat_atk(upd, ctx):
     q = upd.callback_query
     uid = upd.effective_user.id
-    await q.answer("⚔️!")  # Responde imediatamente ao Telegram
+    await q.answer("⚔️!")
 
     conn = get_db_connection()
     c = conn.cursor(cursor_factory=RealDictCursor)
 
-    # 1 QUERY: lê tudo junto
     c.execute("""
         SELECT p.*, cb.inimigo, cb.i_hp, cb.i_hp_max, cb.i_atk, cb.i_def,
                cb.i_xp, cb.i_gold, cb.turno, cb.defendendo, cb.heroi,
@@ -738,7 +742,7 @@ async def bat_atk(upd, ctx):
     for _ in range(num_ataques):
         dano_base = int(p_atk * (100 / (100 + dados['i_def'])))
         dano = max(1, dano_base + random.randint(-2, 2))
-    
+
         if is_crit:
             dano = int(dano * 1.5)
             i_hp -= dano
@@ -746,56 +750,75 @@ async def bat_atk(upd, ctx):
         else:
             i_hp -= dano
             log.append(f"⚔️ Ataque! -{dano} HP")
-    
-    # AGORA O BREAK ESTÁ DENTRO DO FOR
+
         if i_hp <= 0:
             break
-
 
     resultado = None
 
     if i_hp <= 0:
-        p_hp = max(1, p_hp)
-        c.execute("UPDATE players SET hp=%s, gold=gold+%s, exp=exp+%s WHERE id=%s", 
-              (p_hp, dados['i_gold'], dados['i_exp'], uid))
-    
-    # PRIMEiro dá COMMIT pra garantir que os dados foram salvos
+        # CORRIGIDO: i_exp -> i_xp
+        c.execute("UPDATE players SET hp=%s, gold=gold+%s, exp=exp+%s WHERE id=%s",
+                  (p_hp, dados['i_gold'], dados['i_xp'], uid))
         conn.commit()
-    
-    # DEPOIS busca os dados ATUALIZADOS
+
+        # Verifica subida de nível
         c.execute("SELECT lv, exp, classe FROM players WHERE id=%s", (uid,))
         player_atual = c.fetchone()
-    
-    # E SÓ ENTÃO verifica nível
-    if player_atual:
-        lv_atual, exp_atual, classe = player_atual
-        xp_necessario = lv_atual * 100
-        
-        if exp_atual >= xp_necessario:
-            # ... lógica de subir nível ...
-            novo_lv = lv_atual + 1
-            exp_restante = exp_atual - xp_necessario
-            stats = CLASSE_STATS[classe]
-            novo_hp_max = stats['hp'] * novo_lv
-            novo_mana_max = stats['mana'] * novo_lv if stats['mana'] > 0 else 0
-            
-            c.execute("""
-                UPDATE players SET 
-                    lv = %s,
-                    exp = %s,
-                    hp_max = %s,
-                    hp = %s,
-                    mana_max = %s,
-                    mana = %s
-                WHERE id = %s
-            """, (novo_lv, exp_restante, novo_hp_max, novo_hp_max, 
-                  novo_mana_max, novo_mana_max, uid))
-            
-            conn.commit()  # COMMIT do novo nível
-    
-    c.execute("DELETE FROM combate WHERE pid=%s", (uid,))
-    resultado = "vitoria"
-    
+
+        if player_atual:
+            lv_atual = player_atual['lv']
+            exp_atual = player_atual['exp']
+            classe = player_atual['classe']
+            xp_necessario = lv_atual * 100
+
+            if exp_atual >= xp_necessario:
+                novo_lv = lv_atual + 1
+                exp_restante = exp_atual - xp_necessario
+                stats = CLASSE_STATS[classe]
+                novo_hp_max = stats['hp'] * novo_lv
+                novo_mana_max = stats['mana'] * novo_lv if stats['mana'] > 0 else 0
+
+                c.execute("""
+                    UPDATE players SET 
+                        lv = %s, exp = %s, hp_max = %s, hp = %s,
+                        mana_max = %s, mana = %s
+                    WHERE id = %s
+                """, (novo_lv, exp_restante, novo_hp_max, novo_hp_max,
+                      novo_mana_max, novo_mana_max, uid))
+                conn.commit()
+
+                log.append(f"\n🎉 **SUBIU PARA NÍVEL {novo_lv}!**")
+
+        c.execute("DELETE FROM combate WHERE pid=%s", (uid,))
+        conn.commit()
+        invalidate_cache(uid)
+        resultado = "vitoria"
+
+    else:
+        # Contra-ataque do inimigo
+        dano_ini = max(1, dados['i_atk'] - p_def + random.randint(-2, 2))
+
+        # Se estava defendendo, reduz dano pela metade
+        if dados.get('defendendo'):
+            dano_ini = max(1, dano_ini // 2)
+            log.append(f"🛡️ Defendeu! Inimigo causou -{dano_ini} HP")
+        else:
+            log.append(f"🐺 Inimigo atacou! -{dano_ini} HP")
+
+        p_hp -= dano_ini
+
+        if p_hp <= 0:
+            c.execute("UPDATE players SET hp=1 WHERE id=%s", (uid,))
+            c.execute("DELETE FROM combate WHERE pid=%s", (uid,))
+            conn.commit()
+            invalidate_cache(uid)
+            resultado = "derrota"
+        else:
+            c.execute("UPDATE players SET hp=%s WHERE id=%s", (p_hp, uid))
+            c.execute("UPDATE combate SET i_hp=%s, turno=turno+1, defendendo=0 WHERE pid=%s", (i_hp, uid))
+            conn.commit()
+            invalidate_cache(uid)
 
     if resultado == "vitoria":
         cap = (f"🏆 **VITÓRIA!**\n{'━'*20}\n🐺 {dados['inimigo']} derrotado!\n\n"
@@ -846,12 +869,35 @@ async def bat_def(upd, ctx):
         return
     dados = dict(dados)
 
+    p_def = calc_def(dados)
+    dano_ini = max(1, dados['i_atk'] - p_def + random.randint(-2, 2))
+    dano_reduzido = max(1, dano_ini // 2)
+    novo_hp = dados['hp'] - dano_reduzido
+
+    if novo_hp <= 0:
+        c.execute("UPDATE players SET hp=1 WHERE id=%s", (uid,))
+        c.execute("DELETE FROM combate WHERE pid=%s", (uid,))
+        conn.commit()
+        invalidate_cache(uid)
+        cap = (f"💀 **DERROTA!**\n{'━'*20}\n🐺 {dados['inimigo']} venceu!\n\n"
+               f"🛡️ Defendeu mas não aguentou!\n{'━'*20}")
+        kb = [[InlineKeyboardButton("🔙 Voltar", callback_data="voltar")]]
+        try:
+            await q.message.delete()
+        except:
+            pass
+        await ctx.bot.send_photo(upd.effective_chat.id, img_c(dados['classe']), caption=cap,
+                                 reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        return
+
+    c.execute("UPDATE players SET hp=%s WHERE id=%s", (novo_hp, uid))
     c.execute("UPDATE combate SET defendendo=1, turno=turno+1 WHERE pid=%s", (uid,))
     conn.commit()
     invalidate_cache(uid)
 
     dados['defendendo'] = 1
     dados['turno'] = dados['turno'] + 1
+    dados['hp'] = novo_hp
     await exibir_combate(upd, ctx, dados)
 
 # ===== COMBATE: ESPECIAL =====
@@ -875,28 +921,92 @@ async def bat_esp(upd, ctx):
         return
     dados = dict(dados)
 
+    # CORRIGIDO: pega especial de CLASSE_STATS
     esp = CLASSE_STATS[dados['classe']]['especial']
     p_atk = calc_atk(dados)
+    p_def = calc_def(dados)
     i_hp = dados['i_hp']
 
     if esp == "maldição" and dados['mana'] >= 20:
         dano = int(p_atk * 1.3)
         i_hp -= dano
-        c.execute("""UPDATE combate SET i_hp=%s,
-                     i_def=GREATEST(i_def-3,0), turno=turno+1, defendendo=0
-                     WHERE pid=%s""", (i_hp, uid))
-        c.execute("UPDATE players SET mana=mana-20 WHERE id=%s", (uid,))
+        # Contra-ataque do inimigo
+        dano_ini = max(1, dados['i_atk'] - p_def + random.randint(-2, 2))
+        novo_hp = dados['hp'] - dano_ini
+
+        if i_hp <= 0:
+            c.execute("UPDATE players SET gold=gold+%s, exp=exp+%s, mana=mana-20 WHERE id=%s",
+                      (dados['i_gold'], dados['i_xp'], uid))
+            c.execute("DELETE FROM combate WHERE pid=%s", (uid,))
+            conn.commit()
+            invalidate_cache(uid)
+            await q.answer(f"🔮 Maldição! -{dano} HP - VITÓRIA!")
+            cap = (f"🏆 **VITÓRIA!**\n{'━'*20}\n🔮 Maldição destruiu o inimigo!\n\n"
+                   f"💰 +{dados['i_gold']} Gold\n✨ +{dados['i_xp']} XP\n{'━'*20}")
+            kb = [[InlineKeyboardButton("🔙 Voltar", callback_data="voltar")]]
+            try:
+                await q.message.delete()
+            except:
+                pass
+            await ctx.bot.send_photo(upd.effective_chat.id, img_c(dados['classe']), caption=cap,
+                                     reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+            return
+
+        if novo_hp <= 0:
+            c.execute("UPDATE players SET hp=1, mana=mana-20 WHERE id=%s", (uid,))
+            c.execute("DELETE FROM combate WHERE pid=%s", (uid,))
+            conn.commit()
+            invalidate_cache(uid)
+            await q.answer("Derrota!", show_alert=True)
+            await menu(upd, ctx, uid, "💀 **Derrotado!**")
+            return
+
+        c.execute("""UPDATE combate SET i_hp=%s, i_def=GREATEST(i_def-3,0), turno=turno+1, defendendo=0 WHERE pid=%s""",
+                  (i_hp, uid))
+        c.execute("UPDATE players SET mana=mana-20, hp=%s WHERE id=%s", (novo_hp, uid))
         await q.answer(f"🔮 Maldição! -{dano} HP")
         dados['mana'] -= 20
+        dados['hp'] = novo_hp
 
     elif esp == "explosão" and dados['mana'] >= 30:
         dano_max = int(dados['i_hp_max'] * 0.25)
         dano = min(dano_max, int(p_atk * 1.5))
         i_hp -= dano
+        dano_ini = max(1, dados['i_atk'] - p_def + random.randint(-2, 2))
+        novo_hp = dados['hp'] - dano_ini
+
+        if i_hp <= 0:
+            c.execute("UPDATE players SET gold=gold+%s, exp=exp+%s, mana=mana-30 WHERE id=%s",
+                      (dados['i_gold'], dados['i_xp'], uid))
+            c.execute("DELETE FROM combate WHERE pid=%s", (uid,))
+            conn.commit()
+            invalidate_cache(uid)
+            await q.answer(f"🔥 Explosão! -{dano} HP - VITÓRIA!")
+            cap = (f"🏆 **VITÓRIA!**\n{'━'*20}\n🔥 Explosão destruiu o inimigo!\n\n"
+                   f"💰 +{dados['i_gold']} Gold\n✨ +{dados['i_xp']} XP\n{'━'*20}")
+            kb = [[InlineKeyboardButton("🔙 Voltar", callback_data="voltar")]]
+            try:
+                await q.message.delete()
+            except:
+                pass
+            await ctx.bot.send_photo(upd.effective_chat.id, img_c(dados['classe']), caption=cap,
+                                     reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+            return
+
+        if novo_hp <= 0:
+            c.execute("UPDATE players SET hp=1, mana=mana-30 WHERE id=%s", (uid,))
+            c.execute("DELETE FROM combate WHERE pid=%s", (uid,))
+            conn.commit()
+            invalidate_cache(uid)
+            await q.answer("Derrota!", show_alert=True)
+            await menu(upd, ctx, uid, "💀 **Derrotado!**")
+            return
+
         c.execute("UPDATE combate SET i_hp=%s, turno=turno+1, defendendo=0 WHERE pid=%s", (i_hp, uid))
-        c.execute("UPDATE players SET mana=mana-30 WHERE id=%s", (uid,))
-        await q.answer(f"🔥 Explosão! -{dano} HP (25% máx)")
+        c.execute("UPDATE players SET mana=mana-30, hp=%s WHERE id=%s", (novo_hp, uid))
+        await q.answer(f"🔥 Explosão! -{dano} HP")
         dados['mana'] -= 30
+        dados['hp'] = novo_hp
     else:
         await q.answer("Sem mana!", show_alert=True)
         return
@@ -1029,7 +1139,6 @@ async def usar_pocao(upd, ctx, item):
 
     dados['hp'] = novo_p_hp
     dados['turno'] = dados['turno'] + 1
-    # Atualiza inventário em memória
     inv_data[item] = inv_data.get(item, 1) - 1
     dados['inventario'] = inv_data
     await exibir_combate(upd, ctx, dados)
@@ -1274,7 +1383,7 @@ async def loja_contra(upd, ctx):
         st = "✅" if dados['lv'] >= eq['lv'] else f"🔒 Lv.{eq['lv']}"
         em = "⚔️" if eq['t'] == "arma" else "🛡️"
         stat = f"+{eq.get('atk', eq.get('def'))}"
-        cap += f"{st} {em} {n} {stat}\n└ 💰 ~~{eq['p']}~~ {pf}\n"
+        cap += f"{st} {em} {n} {stat}\n└ 💰 {pf}\n"
         if dados['lv'] >= eq['lv'] and dados['gold'] >= pf:
             kb.append([InlineKeyboardButton(f"💰 {n}", callback_data=f"comp_contra_{n}")])
 
@@ -1283,7 +1392,7 @@ async def loja_contra(upd, ctx):
         if cs['tipo'] == 'mana' and dados['mana_max'] == 0:
             continue
         pf = int(cs['preco'] * 0.7)
-        cap += f"💊 {n} ({cs['tipo'].upper()} +{cs['valor']})\n└ 💰 ~~{cs['preco']}~~ {pf}\n"
+        cap += f"💊 {n} ({cs['tipo'].upper()} +{cs['valor']})\n└ 💰 {pf}\n"
         if dados['gold'] >= pf:
             kb.append([InlineKeyboardButton(f"💊 {n}", callback_data=f"comp_contra_{n}")])
 
@@ -1582,10 +1691,10 @@ async def rst_y(upd, ctx):
     await q.answer("✅ Personagem deletado!", show_alert=True)
 
     cap = (f"🎭 **ESCOLHA SUA CLASSE**\n{'━'*20}\n\n"
-           f"🛡️ **Guerreiro**\n└ HP Alto | Defesa Máxima\n└ ❤️ 250 HP | 🛡️ 18 DEF\n\n"
-           f"🏹 **Arqueiro**\n└ Crítico | Ataque Duplo\n└ ❤️ 120 HP | 💥 25% CRIT\n\n"
-           f"🔮 **Bruxa**\n└ Maldição | Dano Mágico\n└ ❤️ 150 HP | 💙 100 MANA\n\n"
-           f"🔥 **Mago**\n└ Explosão | Poder Máximo\n└ ❤️ 130 HP | 💙 120 MANA\n{'━'*20}")
+           f"🛡️ **Guerreiro**\n└ HP Alto | Defesa Máxima\n└ ❤️ 200 HP | 🛡️ 25 DEF\n\n"
+           f"🏹 **Arqueiro**\n└ Crítico | Ataque Duplo\n└ ❤️ 140 HP | 💥 25% CRIT\n\n"
+           f"🔮 **Bruxa**\n└ Maldição | Dano Mágico\n└ ❤️ 160 HP | 💙 120 MANA\n\n"
+           f"🔥 **Mago**\n└ Explosão | Poder Máximo\n└ ❤️ 120 HP | 💙 150 MANA\n{'━'*20}")
     kb = [
         [InlineKeyboardButton("🛡️ Guerreiro", callback_data="Guerreiro"),
          InlineKeyboardButton("🏹 Arqueiro", callback_data="Arqueiro")],
@@ -1640,18 +1749,21 @@ async def voltar(upd, ctx):
 
 # ===== INÍCIO / CRIAÇÃO DE PERSONAGEM =====
 async def start(upd, ctx):
-    # TESTE DIRETO
-    await upd.message.reply_text("ESTOU VIVO PORRA!")
-    return  # NADA MAIS
-    # ... resto do código pro novo jogador ...
-
     ctx.user_data.clear()
-    agora = datetime.datetime.now().strftime("%H:%M:%S")
     cap = (f"✨ **AVENTURA RABISCADA** ✨\n{'━'*20}\n"
-           f"Versão: `{VERSAO} - {agora}`\n\n"
-           f"🎮 **NOVIDADES:**\n⚔️ Combate Manual\n🎭 Classes Únicas\n"
+           f"Versão: `{VERSAO}`\n\n"
+           f"🎮 **BEM-VINDO!**\n⚔️ Combate Manual\n🎭 Classes Únicas\n"
            f"💊 Sistema de Consumíveis\n🔮 Habilidades Especiais\n💙 Sistema de Mana\n{'━'*20}")
     kb = [[InlineKeyboardButton("🎮 Começar", callback_data="ir_cls")]]
+
+    uid = upd.effective_user.id
+    jogador = get_tudo(uid)
+
+    if jogador:
+        # Jogador já existe, vai direto ao menu
+        await menu(upd, ctx, uid, "🔄 Bem-vindo de volta!")
+        return ConversationHandler.END
+
     await upd.message.reply_photo(IMAGENS["logo"], caption=cap,
                                   reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     return ST_CL
@@ -1660,10 +1772,10 @@ async def menu_cls(upd, ctx):
     q = upd.callback_query
     await q.answer()
     cap = (f"🎭 **ESCOLHA SUA CLASSE**\n{'━'*20}\n\n"
-           f"🛡️ **Guerreiro**\n└ HP Alto | Defesa Máxima\n└ ❤️ 250 HP | 🛡️ 18 DEF\n\n"
-           f"🏹 **Arqueiro**\n└ Crítico | Ataque Duplo\n└ ❤️ 120 HP | 💥 25% CRIT\n\n"
-           f"🔮 **Bruxa**\n└ Maldição | Dano Mágico\n└ ❤️ 150 HP | 💙 100 MANA\n\n"
-           f"🔥 **Mago**\n└ Explosão | Poder Máximo\n└ ❤️ 130 HP | 💙 120 MANA\n{'━'*20}")
+           f"🛡️ **Guerreiro**\n└ HP Alto | Defesa Máxima\n└ ❤️ 200 HP | 🛡️ 25 DEF\n\n"
+           f"🏹 **Arqueiro**\n└ Crítico | Ataque Duplo\n└ ❤️ 140 HP | 💥 25% CRIT\n\n"
+           f"🔮 **Bruxa**\n└ Maldição | Dano Mágico\n└ ❤️ 160 HP | 💙 120 MANA\n\n"
+           f"🔥 **Mago**\n└ Explosão | Poder Máximo\n└ ❤️ 120 HP | 💙 150 MANA\n{'━'*20}")
     kb = [
         [InlineKeyboardButton("🛡️ Guerreiro", callback_data="Guerreiro"),
          InlineKeyboardButton("🏹 Arqueiro", callback_data="Arqueiro")],
@@ -1691,7 +1803,8 @@ async def salv_nm(upd, ctx):
         cap += f"💥 CRIT: {stats['crit']}%\n"
     if stats['double']:
         cap += f"⚡ Ataque Duplo\n"
-    if stats['especial']:
+    # CORRIGIDO: verifica se tem especial antes de exibir
+    if stats.get('especial'):
         cap += f"🌟 {stats['especial'].title()}\n"
     cap += f"{'━'*20}\n📝 **Digite seu nome:**"
 
@@ -1702,62 +1815,14 @@ async def salv_nm(upd, ctx):
     await ctx.bot.send_photo(upd.effective_chat.id, img_c(q.data), caption=cap, parse_mode='Markdown')
     return ST_NM
 
-async def verificar_e_subir_nivel(uid, player_data, cursor, ctx, upd):
-    """Verifica se o jogador subiu de nível e atualiza"""
-    
-    # Pega os dados atuais
-    lv_atual = player_data[0]  # lv
-    exp_atual = player_data[1]  # exp
-    classe = player_data[2]  # classe
-    
-    # Calcula XP necessário para o próximo nível
-    xp_necessario = lv_atual * 100
-    
-    # Se tiver XP suficiente, sobe de nível
-    if exp_atual >= xp_necessario:
-        novo_lv = lv_atual + 1
-        exp_restante = exp_atual - xp_necessario
-        
-        # Pega stats da classe
-        stats = CLASSE_STATS[classe]
-        
-        # Calcula novos valores máximos
-        novo_hp_max = stats['hp'] * novo_lv
-        novo_mana_max = stats['mana'] * novo_lv if stats['mana'] > 0 else 0
-        
-        # Atualiza no banco
-        cursor.execute("""
-            UPDATE players SET 
-                lv = %s,
-                exp = %s,
-                hp_max = %s,
-                hp = %s,
-                mana_max = %s,
-                mana = %s
-            WHERE id = %s
-        """, (novo_lv, exp_restante, novo_hp_max, novo_hp_max, 
-              novo_mana_max, novo_mana_max, uid))
-        
-        # Envia mensagem de parabéns
-        try:
-            await ctx.bot.send_message(
-                upd.effective_chat.id,
-                f"✨ **PARABÉNS!** ✨\nVocê subiu para o **Nível {novo_lv}!**",
-                parse_mode='Markdown'
-            )
-        except:
-            pass
-        
-        # Verifica se ainda tem XP para mais níveis
-        if exp_restante >= novo_lv * 100:
-            # Busca dados atualizados e chama de novo
-            cursor.execute("SELECT lv, exp, classe FROM players WHERE id=%s", (uid,))
-            novos_dados = cursor.fetchone()
-            await verificar_e_subir_nivel(uid, novos_dados, cursor, ctx, upd)
-
 async def fin(upd, ctx):
     uid = upd.effective_user.id
-    nome = upd.message.text
+    nome = upd.message.text.strip()
+
+    if not nome or len(nome) > 30:
+        await upd.message.reply_text("❌ Nome inválido! Digite um nome entre 1 e 30 caracteres.")
+        return ST_NM
+
     classe = ctx.user_data.get('classe', 'Guerreiro')
     stats = CLASSE_STATS[classe]
 
@@ -1779,7 +1844,7 @@ async def fin(upd, ctx):
     conn.commit()
     invalidate_cache(uid)
 
-    await upd.message.reply_text(f"✨ **{nome}!**\nBem-vindo, {classe}!", parse_mode='Markdown')
+    await upd.message.reply_text(f"✨ **{nome}** criado!\nBem-vindo, {classe}! 🎮", parse_mode='Markdown')
     await menu(upd, ctx, uid)
     return ConversationHandler.END
 
@@ -1792,7 +1857,6 @@ def main():
     except:
         pass
 
-    import threading
     t = threading.Thread(target=run_fake_server, daemon=True)
     t.start()
 
@@ -1802,7 +1866,10 @@ def main():
         entry_points=[CommandHandler('start', start)],
         states={
             ST_CL: [CallbackQueryHandler(menu_cls, pattern='^ir_cls$')],
-            ST_NM: [CallbackQueryHandler(salv_nm), MessageHandler(filters.TEXT & ~filters.COMMAND, fin)]
+            ST_NM: [
+                CallbackQueryHandler(salv_nm, pattern='^(Guerreiro|Arqueiro|Bruxa|Mago)$'),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, fin)
+            ]
         },
         fallbacks=[CommandHandler('start', start)]
     )
